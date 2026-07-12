@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: observability
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch:
+
+    exporters:
+      otlp/tempo:
+        endpoint: tempo.observability.svc.cluster.local:4317
+        tls:
+          insecure: true
+      otlphttp/metrics:
+        endpoint: http://prometheus-server.observability.svc.cluster.local:80/api/v1/otlp
+        tls:
+          insecure: true
+      otlphttp/loki:
+        endpoint: http://loki.observability.svc.cluster.local:3100/otlp
+        tls:
+          insecure: true
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp/tempo]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlphttp/metrics]
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlphttp/loki]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: otel-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: otel-collector
+    spec:
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:latest
+          args:
+            - --config=/etc/otel-collector/config.yaml
+          ports:
+            - name: grpc-otlp
+              containerPort: 4317
+              protocol: TCP
+            - name: http-otlp
+              containerPort: 4318
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otel-collector
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: otel-collector
+  ports:
+    - name: grpc-otlp
+      port: 4317
+      targetPort: 4317
+      nodePort: 30417
+      protocol: TCP
+    - name: http-otlp
+      port: 4318
+      targetPort: 4318
+      nodePort: 30418
+      protocol: TCP

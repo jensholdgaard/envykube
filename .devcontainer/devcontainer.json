@@ -1,0 +1,30 @@
+{
+  "name": "opencode-agent",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "workspaceFolder": "/workspace",
+  "runArgs": [
+    "--network=k3d-agent-platform",
+    "--hostname=agent",
+    "--add-host=host.docker.internal:host-gateway",
+    "--add-host=api.vcluster.localhost:host-gateway",
+    "--add-host=grafana.platform.localhost:host-gateway",
+    "--add-host=forgejo.localhost:host-gateway"
+  ],
+  "mounts": [
+    "source=${localEnv:KUBECONFIG_PATH},target=/home/agent/.kube/config,type=bind,readonly",
+    "source=${localEnv:OPENCODE_CONFIG_PATH},target=/home/agent/.config/opencode/opencode.json,type=bind,readonly"
+  ],
+  "containerEnv": {
+    "KUBECONFIG": "/home/agent/.kube/config",
+    "GRAFANA_TOKEN": "${localEnv:GRAFANA_TOKEN}"
+  },
+  "remoteUser": "agent",
+  "customizations": {
+    "opencode": {
+      "mcpFile": "/home/agent/.config/opencode/opencode.json"
+    }
+  }
+}
