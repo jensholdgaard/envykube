@@ -22,7 +22,7 @@ code to a local Git server, and are managed from a single browser tab.
 |---------|--------|
 | Grafana | `grafana.platform.localhost` (LGTM stack) |
 | OTel Collector | `host.docker.internal:30417` (traces→Tempo, metrics→Prometheus, logs→Loki) |
-| Forgejo | `forgejo.localhost:3000` (Git hosting) |
+| Forgejo | `forgejo.platform.localhost` (Git hosting) |
 | Agent memory | `.opencode/mnemoria/` (git-mediated, shared via commits) |
 
 ## How agents are constrained

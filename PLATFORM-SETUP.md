@@ -202,7 +202,7 @@ echo 'address=/localhost/127.0.0.1' | \
 sudo systemctl restart NetworkManager
 ```
 
-Forgejo is also accessible at `http://forgejo.localhost:3000`.
+Forgejo is also accessible at `http://forgejo.platform.localhost`.
 
 ---
 
@@ -403,7 +403,7 @@ Each agent runs in a DevContainer with OpenCode, CLIs, MCP servers, its
 just forgejo
 ```
 
-Forgejo runs at `http://forgejo.localhost:3000`. On first visit, complete the
+Forgejo runs at `http://forgejo.platform.localhost`. On first visit, complete the
 install form (SQLite, admin: agent / agent123). Agents clone from it, push
 changes for CI/review. No external auth needed.
 
@@ -436,7 +436,7 @@ Located at `.devcontainer/devcontainer.json`:
     "--hostname=agent",
     "--add-host=host.docker.internal:host-gateway",
     "--add-host=grafana.platform.localhost:host-gateway",
-    "--add-host=forgejo.localhost:host-gateway"
+    "--add-host=forgejo.platform.localhost:host-gateway"
   ],
   "mounts": [
     "source=${localEnv:KUBECONFIG_PATH},target=/home/agent/.kube/config,type=bind,readonly",
@@ -451,7 +451,7 @@ Located at `.devcontainer/devcontainer.json`:
 
 ```bash
 just provision agent-alpha 1
-just workspace agent-alpha http://forgejo.localhost:3000/agent/my-repo.git
+just workspace agent-alpha http://forgejo.platform.localhost/agent/my-repo.git
 ```
 
 This:

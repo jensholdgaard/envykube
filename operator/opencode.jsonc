@@ -1,0 +1,78 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // ── Model ──────────────────────────────────────────────────────────────
+  "model": "deepseek/deepseek-v4-pro",
+
+  // ── Providers ──────────────────────────────────────────────────────────
+  "provider": {
+    "deepseek": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "DeepSeek",
+      "options": {
+        "baseURL": "https://api.deepseek.com",
+        "apiKey": "{env:DEEPSEEK_API_KEY}"
+      },
+      "models": {
+        "deepseek-v4-pro": { "name": "DeepSeek V4 Pro" }
+      }
+    }
+  },
+
+  "enabled_providers": ["deepseek"],
+
+  // ── Permissions (host-level operator) ──────────────────────────────────
+  // The operator has full access to the host toolchain: just recipes,
+  // k3d/docker cluster management, admin kubectl, vcluster, helm.
+  // Most-specific pattern wins — the explicit allows override the catch-all deny.
+  "permission": {
+    "bash": {
+      "just *": "allow",
+      "k3d *": "allow",
+      "docker *": "allow",
+      "kubectl *": "allow",
+      "vcluster *": "allow",
+      "helm *": "allow",
+      "mkdir *": "allow",
+      "cp *": "allow",
+      "mv *": "allow",
+      "rm *": "allow",
+      "cat *": "allow",
+      "curl *": "allow",
+      "echo *": "allow",
+      "*": "deny"
+    }
+  },
+
+  // ── Plugins ──────────────────────────────────────────────────────────────
+  "plugin": [
+    [
+      "@devtheops/opencode-plugin-otel",
+      {
+        "enabled": true,
+        "endpoint": "http://localhost:30417",
+        "protocol": "grpc",
+        "resourceAttributes": "deployment.environment=agentic-k8s-platform,service.name=operator"
+      }
+    ]
+  ],
+
+  // ── MCP servers ────────────────────────────────────────────────────────
+  "mcp": {
+    "grafana": {
+      "type": "local",
+      "command": ["mcp-grafana"],
+      "environment": {
+        "GRAFANA_URL": "http://grafana.platform.localhost",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "{env:GRAFANA_SERVICE_ACCOUNT_TOKEN}"
+      }
+    },
+    "k8s": {
+      "type": "local",
+      "command": ["kubectl-mcp-server"],
+      "environment": {
+        "KUBECONFIG": "{env:KUBECONFIG}"
+      }
+    }
+  }
+}

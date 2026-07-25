@@ -6,7 +6,10 @@ isolated vCluster, a shared observability stack, and a local Forgejo Git server.
 ## Your vCluster
 
 - Access: `kubectl` is already configured via `$KUBECONFIG`
-- Limits: 6 CPU, 12 GiB RAM, 50 pods, 10 PVCs
+- Budget: `requests.cpu 4`, `requests.memory 8Gi`, `limits.memory 24Gi`, 50 pods, 10 PVCs
+- No CPU-limit ceiling — don't hand-write CPU limits to fit the budget. Memory is the one
+  to watch: every container without an explicit memory limit is charged 512Mi, initContainers
+  and sidecars included.
 - Your hostname prefix: `*.${VCLUSTER_NAME}.localhost`
 
 ## Exposing services — THE ONLY WAY
@@ -36,5 +39,5 @@ That is it. The app is now at `http://X.my-agent-2.localhost` in any browser.
 
 ## Git
 
-- Forgejo: `http://forgejo.localhost:3000`
+- Forgejo: `http://forgejo.platform.localhost`
 - Push changes for the user to review

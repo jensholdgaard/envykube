@@ -21,8 +21,10 @@ data:
         endpoint: tempo.observability.svc.cluster.local:4317
         tls:
           insecure: true
-      otlphttp/metrics:
-        endpoint: http://prometheus-server.observability.svc.cluster.local:80/api/v1/otlp
+      otlphttp/mimir:
+        # otlphttp appends /v1/metrics -> POSTs to Mimir's native OTLP endpoint /otlp/v1/metrics.
+        # No X-Scope-OrgID header needed: Mimir runs with multitenancy disabled.
+        endpoint: http://mimir.observability.svc.cluster.local:8080/otlp
         tls:
           insecure: true
       otlphttp/loki:
@@ -39,7 +41,7 @@ data:
         metrics:
           receivers: [otlp]
           processors: [batch]
-          exporters: [otlphttp/metrics]
+          exporters: [otlphttp/mimir]
         logs:
           receivers: [otlp]
           processors: [batch]
@@ -62,7 +64,7 @@ spec:
     spec:
       containers:
         - name: otel-collector
-          image: otel/opentelemetry-collector-contrib:latest
+          image: otel/opentelemetry-collector-contrib:0.157.0
           args:
             - --config=/etc/otel-collector/config.yaml
           ports:

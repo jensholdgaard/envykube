@@ -89,7 +89,7 @@ flowchart TB
     TRAEFIK -.->|"app.agent-alpha.localhost
     grafana.platform.localhost
     traefik.localhost"| BROWSER
-    FORGEJO -.->|"forgejo.localhost:3000"| BROWSER
+    FORGEJO -.->|"forgejo.platform.localhost"| BROWSER
 
     %% Git
     FORGEJO <-->|clone / push| DC1

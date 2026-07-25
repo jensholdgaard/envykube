@@ -1,5 +1,56 @@
 {
   "$schema": "https://opencode.ai/config.json",
+
+  // ── Model ──────────────────────────────────────────────────────────────
+  // Default to DeepSeek V4 Pro (registered under `provider` below). Swap freely —
+  // nothing in the platform assumes a specific vendor. If you run a different model,
+  // change this string and add/adjust the matching `provider` entry.
+  "model": "deepseek/deepseek-v4-pro",
+
+  // ── Providers (digital sovereignty) ────────────────────────────────────
+  // `@ai-sdk/openai-compatible` covers DeepSeek, vLLM, Ollama, llama.cpp, or any
+  // OpenAI-compatible endpoint — point `baseURL` at it and register the model IDs
+  // you use. The API key is read from the environment at runtime, never baked in.
+  "provider": {
+    "deepseek": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "DeepSeek",
+      "options": {
+        "baseURL": "https://api.deepseek.com",
+        "apiKey": "{env:DEEPSEEK_API_KEY}"
+      },
+      "models": {
+        "deepseek-v4-pro": { "name": "DeepSeek V4 Pro" }
+      }
+    }
+  },
+
+  // Restrict opencode to only the providers you allow. Remove to let opencode use
+  // any provider it knows about.
+  "enabled_providers": ["deepseek"],
+
+  // ── Enforced guardrails ─────────────────────────────────────────────────
+  // Turns the AGENTS.md "what NOT to do" rules into machine policy (most-specific
+  // pattern wins). Denies the known-useless commands so a weak model can't waste
+  // turns on them — ClusterIP + Ingress is the only exposure path.
+  // NOTE: bash-string matching can't inspect applied YAML, so a LoadBalancer Service
+  // created via `kubectl apply -f svc.yaml` is NOT caught here. This is a nudge on the
+  // obvious paths, not an airtight gate; the real isolation is the vCluster + kubeconfig.
+  // The agent's container is fully isolated (no Docker socket, no host filesystem) so
+  // filesystem access is unrestricted — the API key is baked into the config, not in env.
+  "permission": {
+    "bash": {
+      "kubectl port-forward *": "deny",
+      "kubectl expose *--type=LoadBalancer*": "deny",
+      "kubectl expose *--type LoadBalancer*": "deny",
+      "kubectl create service loadbalancer*": "deny",
+      "kubectl delete *--all*": "deny",
+      "kubectl delete svc kubernetes*": "deny",
+      "*": "allow"
+    }
+  },
+
+  // ── Plugins ──────────────────────────────────────────────────────────────
   "plugin": [
     [
       "@devtheops/opencode-plugin-otel",
@@ -9,28 +60,26 @@
         "protocol": "grpc",
         "resourceAttributes": "deployment.environment=agentic-k8s-platform"
       }
-    ],
-    "oc-mnemoria"
+    ]
   ],
+
+  // ── MCP servers ────────────────────────────────────────────────────────
   "mcp": {
     "grafana": {
       "type": "local",
-      "command": [
-        "mcp-grafana",
-        "--disable-write"
-      ],
+      // Write enabled so agents can create their own dashboards. The service-account token
+      // (GRAFANA_SERVICE_ACCOUNT_TOKEN) must have Grafana's Editor role for writes to take effect.
+      "command": ["mcp-grafana"],
       "environment": {
         "GRAFANA_URL": "http://grafana.platform.localhost",
-        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "<GRAFANA_SERVICE_ACCOUNT_TOKEN>"
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "{env:GRAFANA_SERVICE_ACCOUNT_TOKEN}"
       }
     },
     "k8s": {
       "type": "local",
-      "command": [
-        "kubectl-mcp-server"
-      ],
+      "command": ["kubectl-mcp-server"],
       "environment": {
-        "KUBECONFIG": "<VCLUSTER_KUBECONFIG_PATH>"
+        "KUBECONFIG": "{env:KUBECONFIG}"
       }
     }
   }

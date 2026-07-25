@@ -1,0 +1,117 @@
+# Grafana Mimir — MONOLITHIC (-target=all), single replica, filesystem storage, multitenancy OFF.
+# One deployment, no metrics-storage pod sprawl. See BUILD-PLAN.md (P0).
+# multitenancy_enabled:false is REQUIRED — otherwise every push is rejected for a missing
+# X-Scope-OrgID header (all data lands under the implicit "anonymous" tenant instead).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mimir-config
+  namespace: observability
+data:
+  mimir.yaml: |
+    multitenancy_enabled: false
+    server:
+      http_listen_port: 8080
+      grpc_listen_port: 9095
+      log_level: info
+    common:
+      storage:
+        backend: filesystem
+    limits:
+      promote_otel_resource_attributes:
+        - service.name
+        - service.namespace
+        - service.version
+        - k8s.namespace.name
+        - k8s.pod.name
+        - deployment.environment
+    blocks_storage:
+      filesystem:
+        dir: /data/blocks
+      bucket_store:
+        sync_dir: /data/tsdb-sync
+      tsdb:
+        dir: /data/tsdb
+    compactor:
+      data_dir: /data/compactor
+      sharding_ring:
+        kvstore: { store: memberlist }
+    distributor:
+      ring:
+        instance_addr: 127.0.0.1
+        kvstore: { store: memberlist }
+    ingester:
+      ring:
+        instance_addr: 127.0.0.1
+        replication_factor: 1
+        kvstore: { store: memberlist }
+    store_gateway:
+      sharding_ring:
+        replication_factor: 1
+    ruler_storage:
+      filesystem:
+        dir: /data/ruler
+    alertmanager_storage:
+      filesystem:
+        dir: /data/alertmanager
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mimir-data
+  namespace: observability
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+  # k3d ships local-path as the default StorageClass; leave storageClassName unset to use it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mimir
+  namespace: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mimir
+  template:
+    metadata:
+      labels:
+        app: mimir
+    spec:
+      containers:
+        - name: mimir
+          image: grafana/mimir:3.1.4
+          args: ["-config.file=/etc/mimir/mimir.yaml", "-target=all"]
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: grpc, containerPort: 9095 }
+          volumeMounts:
+            - { name: config, mountPath: /etc/mimir }
+            - { name: data, mountPath: /data }
+          readinessProbe:
+            httpGet: { path: /ready, port: 8080 }
+            initialDelaySeconds: 15
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 1Gi }
+      volumes:
+        - name: config
+          configMap: { name: mimir-config }
+        - name: data
+          persistentVolumeClaim: { claimName: mimir-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mimir
+  namespace: observability
+spec:
+  selector:
+    app: mimir
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+    - { name: grpc, port: 9095, targetPort: 9095 }
