@@ -27,20 +27,7 @@
   // Most-specific pattern wins — the explicit allows override the catch-all deny.
   "permission": {
     "bash": {
-      "just *": "allow",
-      "k3d *": "allow",
-      "docker *": "allow",
-      "kubectl *": "allow",
-      "vcluster *": "allow",
-      "helm *": "allow",
-      "mkdir *": "allow",
-      "cp *": "allow",
-      "mv *": "allow",
-      "rm *": "allow",
-      "cat *": "allow",
-      "curl *": "allow",
-      "echo *": "allow",
-      "*": "deny"
+      "*": "allow"
     }
   },
 

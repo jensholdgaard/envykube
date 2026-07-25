@@ -46,7 +46,7 @@
       "kubectl create service loadbalancer*": "deny",
       "kubectl delete *--all*": "deny",
       "kubectl delete svc kubernetes*": "deny",
-      "*": "allow"
+      "*": "ask"
     }
   },
 
