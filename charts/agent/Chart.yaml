@@ -1,0 +1,8 @@
+apiVersion: v2
+name: agent
+description: >-
+  Per-agent guardrails applied to an agent's host namespace (vc-<name>): ResourceQuota,
+  LimitRange, and optional NetworkPolicy. Installed by `just provision` into vc-<name>;
+  the vCluster itself is a separate Helm release (see values/vcluster.yaml).
+type: application
+version: 0.1.0

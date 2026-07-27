@@ -1,0 +1,80 @@
+{{- if .Values.faultWebhook.enabled }}
+# The handler ships as a ConfigMap, not an image: an agent has no Docker socket and the
+# platform has no in-cluster registry, so anything needing a build could not be installed
+# from inside a vCluster.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fault-webhook
+  namespace: {{ .Release.Namespace }}
+data:
+  fault-webhook.js: |
+{{ .Files.Get "files/fault-webhook.js" | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fault-webhook
+  namespace: {{ .Release.Namespace }}
+spec:
+  # Pinned at 1 by design — see values.yaml. The ordinal counter is in process memory, so a
+  # second replica would split the count and "the 3rd write" would stop meaning anything.
+  replicas: {{ .Values.faultWebhook.replicas }}
+  selector:
+    matchLabels: { app: fault-webhook }
+  template:
+    metadata:
+      labels: { app: fault-webhook }
+      annotations:
+        # Restart the pod when the handler changes, otherwise a `helm upgrade` silently keeps
+        # running the old script.
+        checksum/handler: {{ .Files.Get "files/fault-webhook.js" | sha256sum }}
+        # …and when the serving cert changes. The process reads its key and cert once at
+        # startup, so a rotated Secret without a pod roll means the API server trusts a CA the
+        # process isn't serving — which failurePolicy: Ignore then swallows silently.
+        checksum/tls: {{ with (lookup "v1" "Secret" .Release.Namespace "fault-webhook-tls") }}{{ index .data "tls.crt" | sha256sum }}{{ else }}bootstrap{{ end }}
+    spec:
+      containers:
+        - name: webhook
+          image: {{ .Values.faultWebhook.image }}
+          command: ["bun", "run", "/app/fault-webhook.js"]
+          env:
+            - name: WEBHOOK_PORT
+              value: {{ .Values.faultWebhook.port | quote }}
+          ports:
+            - { name: https, containerPort: {{ .Values.faultWebhook.port }} }
+            - { name: control, containerPort: 8080 }
+          volumeMounts:
+            - { name: handler, mountPath: /app }
+            - { name: tls, mountPath: /tls, readOnly: true }
+          readinessProbe:
+            httpGet: { path: /healthz, port: control }
+            initialDelaySeconds: 2
+            periodSeconds: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: control }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources: {{ toYaml .Values.faultWebhook.resources | nindent 12 }}
+      volumes:
+        - name: handler
+          configMap: { name: fault-webhook }
+        - name: tls
+          secret: { secretName: fault-webhook-tls }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fault-webhook
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector: { app: fault-webhook }
+  ports:
+    # The admission endpoint must be TLS (Kubernetes will not call a plaintext webhook).
+    - { name: https, port: {{ .Values.faultWebhook.port }}, targetPort: https }
+    # The control API is deliberately plain HTTP on a separate port: the runner drives it
+    # through the API server's service proxy
+    #   kubectl get --raw /api/v1/namespaces/<ns>/services/http:fault-webhook:8080/proxy/state
+    # which needs no port-forward and no Ingress — both of which the platform forbids agents.
+    - { name: control, port: 8080, targetPort: control }
+{{- end }}

@@ -1,0 +1,30 @@
+name: dependency-slow
+teaches: foreseeing-errors
+suite: extended
+requires: [dependency, proxy]
+description: >-
+  The dependency still answers, just slowly. Slow is harder than down: connection pools fill,
+  probes time out and a perfectly healthy pod gets killed. Catches missing timeouts and probe
+  budgets that assume the happy path.
+#
+# Opt-in (`extended`), because latency is the one fault with no zero-privilege, no-app-change
+# implementation: tc/netem needs NET_ADMIN in the target's network namespace, which on a
+# shared k3d node means a privileged daemon and the end of agent isolation. The honest
+# alternative is a userspace proxy, which the application has to be pointed at — so the
+# contract must declare `dependency.proxy: true` and address the dependency through
+# toxiproxy.chaos-system.svc.cluster.local:21000.
+steps:
+  - do: deploy
+  - do: ready
+  - do: toxic
+    type: latency
+    latency: 2000
+    jitter: 250
+    note: every call to the dependency now takes ~2s
+  - do: verify
+    note: >-
+      the service must stay usable under a slow dependency — a request that hangs forever is
+      worse than one that fails fast
+  - do: untoxic
+  - do: assert-recovered
+    timeout: 180

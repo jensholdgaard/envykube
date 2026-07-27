@@ -1,0 +1,55 @@
+{{- if .Values.toxiproxy.enabled }}
+# Deterministic dependency faults without privilege. tc/netem would need NET_ADMIN inside the
+# target's network namespace — i.e. a privileged daemon on a node shared with every other
+# agent. A userspace TCP proxy gets latency, resets and bandwidth limits with none of that.
+#
+# The cost is honest and stated in .chaos.yaml: the app must be pointed at the proxy. That is
+# a declared prerequisite of the dependency-* scenarios, not something injected behind the
+# agent's back.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toxiproxy
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: toxiproxy }
+  template:
+    metadata:
+      labels: { app: toxiproxy }
+    spec:
+      containers:
+        - name: toxiproxy
+          image: {{ .Values.toxiproxy.image }}
+          # Default bind is loopback, which is useless in a pod — the control API has to be
+          # reachable from the API server's service proxy.
+          args: ["-host=0.0.0.0", "-port={{ .Values.toxiproxy.apiPort }}"]
+          ports:
+            - { name: api, containerPort: {{ .Values.toxiproxy.apiPort }} }
+            {{- range .Values.toxiproxy.proxyPorts }}
+            - { name: proxy-{{ . }}, containerPort: {{ . }} }
+            {{- end }}
+          readinessProbe:
+            httpGet: { path: /version, port: api }
+            initialDelaySeconds: 2
+            periodSeconds: 3
+          resources: {{ toYaml .Values.toxiproxy.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: toxiproxy
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector: { app: toxiproxy }
+  ports:
+    # Driven via the API server service proxy, same as the fault webhook's control port:
+    #   kubectl get --raw /api/v1/namespaces/<ns>/services/http:toxiproxy:8474/proxy/proxies
+    - { name: api, port: {{ .Values.toxiproxy.apiPort }}, targetPort: api }
+    {{- range .Values.toxiproxy.proxyPorts }}
+    # Listener ports are fixed rather than allocated per run, so the Service an app points at
+    # stays identical across runs and the app needs no redeploy between scenarios.
+    - { name: proxy-{{ . }}, port: {{ . }}, targetPort: proxy-{{ . }} }
+    {{- end }}
+{{- end }}

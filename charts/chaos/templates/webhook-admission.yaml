@@ -1,0 +1,88 @@
+{{- if .Values.faultWebhook.enabled }}
+{{- /*
+  The serving cert and the webhook's caBundle must come from the SAME CA, and Helm evaluates
+  each template file independently — calling genCA twice would produce two unrelated CAs and
+  every admission call would fail TLS. So the Secret and the ValidatingWebhookConfiguration are
+  emitted together, here, from one $ca.
+
+  The cert is generated ONCE and then reused via `lookup`, rather than regenerated on every
+  render. Regenerating looked harmless ("these clusters are disposable") and is not: the
+  webhook process reads its key and cert at startup, so an upgrade that rotates the Secret
+  without rolling the pod leaves the API server trusting a CA the running process is not
+  serving. That fails as `x509: certificate signed by unknown authority`, and because
+  failurePolicy is Ignore it fails SILENTLY — the suite would inject nothing and every
+  scenario would pass for the wrong reason. Observed for real on the first install here.
+
+  `lookup` returns nothing during `helm template`, so rendering offline still works; it just
+  produces a throwaway cert.
+*/}}
+{{- $svc := "fault-webhook" }}
+{{- $secretName := "fault-webhook-tls" }}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace $secretName }}
+{{- $tlsCrt := "" }}
+{{- $tlsKey := "" }}
+{{- $caCrt := "" }}
+{{- if and $existing $existing.data (hasKey $existing.data "ca.crt") }}
+{{-   $tlsCrt = index $existing.data "tls.crt" }}
+{{-   $tlsKey = index $existing.data "tls.key" }}
+{{-   $caCrt = index $existing.data "ca.crt" }}
+{{- else }}
+{{-   $altNames := list (printf "%s.%s.svc" $svc .Release.Namespace) (printf "%s.%s.svc.cluster.local" $svc .Release.Namespace) }}
+{{-   $ca := genCA "chaos-fault-webhook-ca" 3650 }}
+{{-   $cert := genSignedCert (printf "%s.%s.svc" $svc .Release.Namespace) nil $altNames 3650 $ca }}
+{{-   $tlsCrt = $cert.Cert | b64enc }}
+{{-   $tlsKey = $cert.Key | b64enc }}
+{{-   $caCrt = $ca.Cert | b64enc }}
+{{- end }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName }}
+  namespace: {{ .Release.Namespace }}
+type: kubernetes.io/tls
+data:
+  tls.crt: {{ $tlsCrt }}
+  tls.key: {{ $tlsKey }}
+  # Kept in the Secret so the next render can reuse this CA instead of minting a new one.
+  ca.crt: {{ $caCrt }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: chaos-fault-webhook
+webhooks:
+  - name: fault.chaos.envykube.local
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    timeoutSeconds: 5
+    # Ignore, NOT Fail. A webhook that fails closed and then crashes would reject every write
+    # in the agent's cluster — including the writes that would fix it. That is an
+    # unrecoverable state in a sandbox whose entire purpose is producing RECOVERABLE ones.
+    # The trade is that a dead webhook injects nothing silently, so the runner reads /state
+    # after each scenario and fails the scenario if the fault never actually fired.
+    failurePolicy: {{ .Values.faultWebhook.failurePolicy }}
+    clientConfig:
+      service:
+        name: {{ $svc }}
+        namespace: {{ .Release.Namespace }}
+        path: /validate
+        port: {{ .Values.faultWebhook.port }}
+      caBundle: {{ $caCrt }}
+    namespaceSelector:
+      # Never eligible: the platform's own namespaces and the kit itself. Arming a fault must
+      # not be able to wedge the control plane or the webhook's own pod.
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+            - kube-system
+            - kube-public
+            - kube-node-lease
+            - {{ .Release.Namespace }}
+    rules:
+      - apiGroups: {{ toYaml .Values.faultWebhook.rules.apiGroups | nindent 10 }}
+        apiVersions: ["*"]
+        operations: {{ toYaml .Values.faultWebhook.rules.operations | nindent 10 }}
+        resources: {{ toYaml .Values.faultWebhook.rules.resources | nindent 10 }}
+        scope: Namespaced
+{{- end }}

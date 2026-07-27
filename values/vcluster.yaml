@@ -1,0 +1,47 @@
+# loft-sh/vcluster — one release per agent, installed by `just provision`.
+# Identical for every agent, which is why this is a static file rather than a generated one.
+sync:
+  toHost:
+    ingresses:
+      # An agent creating an Ingress inside its vCluster gets it synced up to the host
+      # Traefik, so <app>.<agent>.localhost works with no port-forwarding.
+      enabled: true
+    networkPolicies:
+      # OFF upstream by default, which makes a NetworkPolicy written inside the vCluster an
+      # inert object: it lands in the virtual API and enforces nothing, because the pods it
+      # would govern actually run in the host namespace. The chaos suite's `partition`
+      # scenario is a NetworkPolicy, so without this the fault silently no-ops and the
+      # scenario passes for the wrong reason. Selectors are translated into vc-<name>, so an
+      # agent still cannot write a policy that touches another agent's traffic.
+      enabled: true
+
+networking:
+  # Host-cluster services the agent's workloads must reach, replicated into the vCluster as
+  # real Services so the documented FQDN (otel-collector.observability.svc.cluster.local)
+  # resolves natively. Without this every agent has to hand-patch the vCluster CoreDNS
+  # ConfigMap — and that patch dies with the vCluster. The chart auto-grants the ClusterRole
+  # rules this needs (templates/clusterrole.yaml is gated on
+  # networking.replicateServices.fromHost).
+  # NOTE: the target namespace must exist INSIDE the vCluster — `just provision` creates it
+  # after connecting.
+  replicateServices:
+    fromHost:
+      - from: observability/otel-collector
+        to: observability/otel-collector
+  advanced:
+    # Safety net for every other host service: names the vCluster can't resolve fall back to
+    # host DNS (addressed as <service>.<namespace>). networking.resolveDNS would be the precise
+    # tool but it requires embedded CoreDNS — a vCluster PRO feature, so not an option here.
+    fallbackHostCluster: true
+
+controlPlane:
+  statefulSet:
+    resources:
+      requests: { cpu: 200m, memory: 256Mi }
+      limits: { cpu: "2", memory: 2Gi }
+  proxy:
+    extraSANs:
+      # host.docker.internal for in-DevContainer clients, 127.0.0.1 for host-side tooling.
+      # Both kubeconfig variants are exported by `just provision`.
+      - host.docker.internal
+      - 127.0.0.1

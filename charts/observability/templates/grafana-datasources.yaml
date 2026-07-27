@@ -1,10 +1,10 @@
-# Grafana datasources, loaded by the chart's datasource sidecar (label grafana_datasource=1).
-# Requires the grafana install with --set sidecar.datasources.enabled=true (see `observability`).
+# Loaded by the Grafana chart's datasource sidecar (label grafana_datasource=1).
+# Requires sidecar.datasources.enabled=true — set in values/grafana.yaml.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-datasources
-  namespace: observability
+  namespace: {{ .Release.Namespace }}
   labels:
     grafana_datasource: "1"
 data:
@@ -15,7 +15,7 @@ data:
         uid: mimir
         type: prometheus
         access: proxy
-        url: http://mimir.observability.svc.cluster.local:8080/prometheus
+        url: http://mimir.{{ .Release.Namespace }}.svc.cluster.local:8080/prometheus
         isDefault: true
         jsonData:
           httpMethod: POST
@@ -23,9 +23,9 @@ data:
         uid: tempo
         type: tempo
         access: proxy
-        url: http://tempo.observability.svc.cluster.local:3200
+        url: http://tempo.{{ .Release.Namespace }}.svc.cluster.local:3200
       - name: Loki
         uid: loki
         type: loki
         access: proxy
-        url: http://loki-gateway.observability.svc.cluster.local
+        url: http://loki-gateway.{{ .Release.Namespace }}.svc.cluster.local

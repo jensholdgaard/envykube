@@ -1,0 +1,27 @@
+name: restart-cold
+teaches: invariant-recovery
+suite: default
+description: >-
+  Every application pod is deleted and the workload must come back on its own, against a
+  dependency that already holds state from the first boot. Catches the classic startup path
+  that only works once: CREATE TABLE without IF NOT EXISTS, "initialise then insert", or an
+  init step that assumes an empty database.
+steps:
+  - do: deploy
+  - do: ready
+  - do: verify
+    capture: before
+  - do: kill
+    target: app
+    note: all application pods deleted — the controller must bring them back
+  - do: assert-recovered
+    timeout: 180
+    note: >-
+      the workload never became healthy again after a plain restart; its startup path is
+      not safe to run a second time against existing state
+  - do: verify
+    capture: after
+  - do: assert-same
+    a: before
+    b: after
+    note: state was lost or reset by the restart

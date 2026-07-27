@@ -1,0 +1,10 @@
+apiVersion: v2
+name: chaos
+description: >-
+  The zero-privilege fault kit, installed INSIDE an agent's vCluster (not the host cluster,
+  unlike every other chart here). Provides a deterministic fault-injecting admission webhook
+  and a Toxiproxy dependency proxy, so the chaos suite can produce API failures, duplicate
+  writes and dependency outages without a privileged DaemonSet. Installed by
+  `just chaos-install <name>`; the scenarios that drive it live in chaos/scenarios/.
+type: application
+version: 0.1.0

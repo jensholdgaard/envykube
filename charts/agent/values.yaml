@@ -1,0 +1,51 @@
+# What one agent is allowed to consume. Installed per agent into its own namespace, so
+# the release needs no --set at all: `helm upgrade --install agent charts/agent -n vc-<name>`.
+#
+# Read the two comment blocks below before changing numbers — the quota/LimitRange pair
+# interact in a non-obvious way that has already bitten this platform once.
+
+quota:
+  # CPU is governed by REQUESTS only, memory by both requests and limits. Deliberate:
+  # a quota on limits.cpu forces every container to carry a CPU limit, which forces the
+  # LimitRange to invent one — and that default, applied to every container INCLUDING
+  # initContainers and sidecars, is what actually exhausts the budget. Measured on the
+  # Astroshop run: requests.cpu 610m/4 while limits.cpu sat at 5050m/6. The workload was
+  # nowhere near its real budget; the default manufactured 8x phantom demand.
+  # Dropping limits.cpu means containers need no CPU limit at all — nothing to invent, and
+  # no CFS throttling starving JVM startup. CPU is compressible; the absolute ceiling stays
+  # with `just harden` (CPUQuota across all of Docker) and fairness with requests.cpu.
+  requestsCpu: "4"
+  requestsMemory: 8Gi
+
+  # 3x requestsMemory, deliberately. Memory can't be dropped from the quota the way
+  # limits.cpu was (it isn't compressible), so the LimitRange must keep a memory default
+  # — which means the same "invented demand" arithmetic still applies: every container
+  # without an explicit limit contributes the `limitRange.defaultMemory` below. A
+  # 20-pod/3-container app therefore books ~20Gi of limits while genuinely reserving ~5Gi.
+  # Sizing this at the overcommit the defaults produce, not at the real footprint, is what
+  # keeps ordinary charts installable. The actual protections are requestsMemory (what the
+  # scheduler reserves), node capacity, and the `just harden` ceiling — not this number.
+  limitsMemory: 24Gi
+
+  pods: "50"
+  persistentvolumeclaims: "10"
+
+limitRange:
+  # No default CPU — see the quota comment above. A memory default is required because
+  # limits.memory is quota'd.
+  defaultMemory: 512Mi
+  defaultRequestCpu: 50m
+  defaultRequestMemory: 128Mi
+  # Deliberately NO maxCpu: the LimitRanger back-fills `default` from `max` for any
+  # resource `default` omits, so a max CPU of 2 silently reappears as a 2-CPU default limit
+  # on every container — reintroducing exactly the invented limit this design removes.
+  # Total CPU stays bounded by quota.requestsCpu and by `just harden`.
+  maxMemory: 4Gi
+
+networkPolicy:
+  # OFF by default, matching the platform's current behaviour (`just network-policy <name>`
+  # is an explicit opt-in step). Be aware before enabling: the policy below permits egress
+  # only to kube-system, the agent's own namespace, and DNS — it does NOT allow the
+  # observability namespace or the internet, so enabling it as-is stops OTLP telemetry
+  # reaching the collector and blocks outbound HTTP from agent workloads.
+  enabled: false

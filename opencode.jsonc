@@ -46,7 +46,7 @@
       "kubectl create service loadbalancer*": "deny",
       "kubectl delete *--all*": "deny",
       "kubectl delete svc kubernetes*": "deny",
-      "*": "ask"
+      "*": "allow"
     }
   },
 
@@ -67,9 +67,7 @@
   "mcp": {
     "grafana": {
       "type": "local",
-      // Write enabled so agents can create their own dashboards. The service-account token
-      // (GRAFANA_SERVICE_ACCOUNT_TOKEN) must have Grafana's Editor role for writes to take effect.
-      "command": ["mcp-grafana"],
+      "command": ["uvx", "mcp-grafana"],
       "environment": {
         "GRAFANA_URL": "http://grafana.platform.localhost",
         "GRAFANA_SERVICE_ACCOUNT_TOKEN": "{env:GRAFANA_SERVICE_ACCOUNT_TOKEN}"

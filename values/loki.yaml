@@ -1,0 +1,27 @@
+# grafana/loki — single-binary, filesystem-backed. Applied by `just observability`.
+#
+# The chart defaults to SimpleScalable, which needs object storage; SingleBinary with the
+# scalable replica counts zeroed is what makes it run on a laptop with no S3/MinIO.
+deploymentMode: SingleBinary
+
+singleBinary:
+  replicas: 1
+
+# Must be explicitly zeroed — the chart would otherwise also schedule the scalable topology.
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+loki:
+  auth_enabled: false
+  storage:
+    type: filesystem
+  commonConfig:
+    # Single replica: no redundancy, and none wanted here.
+    replication_factor: 1
+  # Loki's built-in throwaway schema. Deliberately not a production schema — this store is
+  # disposable along with the cluster.
+  useTestSchema: true

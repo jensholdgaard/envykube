@@ -1,0 +1,27 @@
+name: reapply-twice
+teaches: idempotency
+suite: default
+description: >-
+  Applying the same work twice must converge to the same state. This is the cheapest and
+  highest-signal check in the catalogue — it injects no fault at all, it just refuses to
+  accept "it worked once" as evidence. Schema created without IF NOT EXISTS, seed rows
+  inserted without ON CONFLICT, and Jobs with fixed names all die here.
+steps:
+  - do: deploy
+    note: the first apply must succeed on a clean cluster
+  - do: ready
+  - do: verify
+    capture: first
+  - do: deploy
+    note: >-
+      the second apply is the whole test — a deploy that only works against an empty
+      namespace is not a deploy, it is a one-shot script
+  - do: ready
+  - do: verify
+    capture: second
+  - do: assert-same
+    a: first
+    b: second
+    note: >-
+      state diverged between two identical applies — something is being appended,
+      re-seeded or re-created instead of reconciled

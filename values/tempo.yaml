@@ -1,0 +1,7 @@
+# grafana/tempo — chart defaults are already single-binary and filesystem-backed, so there is
+# nothing to override. The file exists so every upstream release in `just observability` is
+# configured the same declarative way, and so overrides have an obvious home.
+#
+# The OTel Collector ships traces to tempo.observability.svc.cluster.local:4317
+# (see charts/observability/templates/otel-collector.yaml).
+{}

@@ -1,0 +1,25 @@
+name: stuck-not-ready
+teaches: invariant-recovery
+suite: extended
+requires: [dependency]
+description: >-
+  The dependency's container is swapped for a pause image: the pod still exists and is
+  scheduled, but never becomes Ready, so it is removed from its Service endpoints. This is the
+  invariant state agents handle worst — nothing crashed, nothing is missing, and yet nothing
+  works. "The pod is running" is not the same as "the pod is serving".
+steps:
+  - do: deploy
+  - do: ready
+  - do: stall
+    target: dependency
+    note: the dependency is now present but permanently not-Ready, and out of its endpoints
+  - do: verify
+    expect: fail
+    note: >-
+      health reported OK while the dependency had no endpoints — the check is looking at pod
+      existence, not at whether traffic can actually reach it
+  - do: unstall
+    target: dependency
+  - do: assert-recovered
+    timeout: 240
+    note: the workload did not recover once its dependency returned to the endpoint list

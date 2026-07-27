@@ -1,0 +1,24 @@
+name: partition
+teaches: invariant-recovery
+suite: extended
+requires: [dependency]
+description: >-
+  A NetworkPolicy cuts the application off from its dependency for a fixed window. Unlike
+  `dependency-down` the dependency is perfectly healthy — the packets simply never arrive, so
+  connections hang rather than being refused. Distinguishes code that handles "refused" from
+  code that also handles "no answer at all".
+#
+# Requires sync.toHost.networkPolicies in values/vcluster.yaml. Without it the policy is an
+# inert object in the virtual API and this scenario passes for the wrong reason — the runner
+# verifies the policy reached the host before trusting the result.
+steps:
+  - do: deploy
+  - do: ready
+  - do: partition
+    seconds: 45
+    note: egress to the dependency is blocked — connections hang instead of being refused
+  - do: assert-recovered
+    timeout: 240
+    note: >-
+      the workload did not reconnect after the partition healed. Connections that hang need
+      a timeout; without one the process waits forever on a socket that will never answer

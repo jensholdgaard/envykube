@@ -1,0 +1,8 @@
+apiVersion: v2
+name: platform
+description: >-
+  Shared platform routing. Puts the out-of-cluster Forgejo container behind the host
+  cluster's Traefik at forgejo.platform.localhost, so every HTTP service is Host-routed
+  and discoverable via `kubectl get ingress` instead of a host-agnostic published port.
+type: application
+version: 0.1.0

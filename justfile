@@ -10,6 +10,11 @@ context     := "k3d-agent-platform"
 kubeconfigs := "$HOME/.local/share/agent-kubeconfigs"      # where per-agent static kubeconfigs land
 opencodes   := "$HOME/.local/share/agent-opencode"         # where per-agent opencode.json land
 obs_ns      := "observability"
+
+# Upstream chart versions — pinned so a rebuild is reproducible (see values/*.yaml for config)
+loki_version    := "7.1.0"
+tempo_version   := "1.24.4"
+grafana_version := "10.5.15"
 np_base     := "30000"                        # agent API NodePort = np_base + index
 np_max      := "30050"                         # end of the pre-published range
 op_base     := "31000"                         # OpenChamber web UI port = op_base + index
@@ -162,44 +167,14 @@ forgejo:
         -e FORGEJO__server__ROOT_URL="{{forgejo_url}}" \
         codeberg.org/forgejo/forgejo:9
     fi
-    # Route the out-of-cluster Forgejo container through host Traefik so it joins the Host-based
-    # scheme at forgejo.platform.localhost:80 — discoverable via `kubectl get ingress`, and no longer
-    # a host-agnostic :3000 catch-all. A selector-less Service + manual Endpoints point at the
-    # container's IP on the k3d network; re-run `just forgejo` if the container is recreated.
+    # Route the out-of-cluster Forgejo container through host Traefik (charts/platform) so it
+    # joins the Host-based scheme at forgejo.platform.localhost:80 — discoverable via
+    # `kubectl get ingress`, and no longer a host-agnostic :3000 catch-all. The container IP is
+    # the one value that can only be known at runtime; re-run `just forgejo` if it changes.
     fip="$(docker inspect forgejo | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["NetworkSettings"]["Networks"]["k3d-{{cluster}}"]["IPAddress"])')"
-    kubectl --context {{context}} apply -f - <<EOF
-    apiVersion: v1
-    kind: Namespace
-    metadata: { name: platform }
-    ---
-    apiVersion: v1
-    kind: Service
-    metadata: { name: forgejo, namespace: platform }
-    spec:
-      ports:
-        - { name: http, port: 3000, targetPort: 3000 }
-    ---
-    apiVersion: v1
-    kind: Endpoints
-    metadata: { name: forgejo, namespace: platform }
-    subsets:
-      - addresses:
-          - { ip: ${fip} }
-        ports:
-          - { name: http, port: 3000 }
-    ---
-    apiVersion: networking.k8s.io/v1
-    kind: Ingress
-    metadata: { name: forgejo, namespace: platform }
-    spec:
-      rules:
-        - host: forgejo.platform.localhost
-          http:
-            paths:
-              - path: /
-                pathType: Prefix
-                backend: { service: { name: forgejo, port: { number: 3000 } } }
-    EOF
+    helm --kube-context {{context}} upgrade --install platform charts/platform \
+      --namespace platform --create-namespace \
+      --set forgejo.ip="$fip"
     echo "Forgejo → {{forgejo_url}}   (git ssh: localhost:2222)"
     echo "  First visit: open {{forgejo_url}} to create the admin account"
 
@@ -212,41 +187,21 @@ observability:
     helm repo update >/dev/null
     kubectl --context {{context}} create namespace {{obs_ns}} --dry-run=client -o yaml | kubectl --context {{context}} apply -f -
 
-    # Logs (Loki, single binary) + Traces (Tempo)
+    # Upstream charts, pinned and configured by values files (values/*.yaml) rather than --set.
+    echo "→ Installing Loki / Tempo / Grafana (upstream charts)..."
     helm --kube-context {{context}} upgrade --install loki grafana/loki -n {{obs_ns}} \
-      --set deploymentMode=SingleBinary --set singleBinary.replicas=1 \
-      --set backend.replicas=0 --set read.replicas=0 --set write.replicas=0 \
-      --set loki.storage.type=filesystem --set loki.commonConfig.replication_factor=1 \
-      --set loki.useTestSchema=true --set 'loki.auth_enabled=false'
-    helm --kube-context {{context}} upgrade --install tempo grafana/tempo -n {{obs_ns}}
-
-    # Metrics store — Mimir monolithic (single deployment, filesystem storage, multitenancy off)
-    echo "→ Deploying Mimir (monolithic)..."
-    kubectl --context {{context}} apply -f manifests/mimir-monolithic.yaml
-
-    # Grafana + datasource sidecar; datasources (Mimir/Tempo/Loki) provisioned from a labeled ConfigMap
+      --version {{loki_version}} --values values/loki.yaml
+    helm --kube-context {{context}} upgrade --install tempo grafana/tempo -n {{obs_ns}} \
+      --version {{tempo_version}} --values values/tempo.yaml
     helm --kube-context {{context}} upgrade --install grafana grafana/grafana -n {{obs_ns}} \
-      --set sidecar.datasources.enabled=true
-    kubectl --context {{context}} apply -f manifests/grafana-datasources.yaml
+      --version {{grafana_version}} --values values/grafana.yaml
 
-    # Grafana ingress — applied before the collector so the UI survives if a later step fails
-    kubectl --context {{context}} apply -f - <<'EOF'
-    apiVersion: networking.k8s.io/v1
-    kind: Ingress
-    metadata: { name: grafana, namespace: observability }
-    spec:
-      rules:
-        - host: grafana.platform.localhost
-          http:
-            paths:
-              - path: /
-                pathType: Prefix
-                backend: { service: { name: grafana, port: { number: 80 } } }
-    EOF
-
-    # OTel Collector — relays agent app telemetry: traces→Tempo, metrics→Mimir, logs→Loki
-    echo "→ Deploying OTel Collector..."
-    kubectl --context {{context}} apply -f manifests/otel-collector.yaml
+    # Everything this platform owns: Mimir (monolithic metrics store), the OTel Collector,
+    # Grafana datasources, and the Grafana ingress. Inspect it without applying:
+    #   helm template observability charts/observability -n {{obs_ns}}
+    echo "→ Installing Mimir + OTel Collector + datasources + ingress (charts/observability)..."
+    helm --kube-context {{context}} upgrade --install observability charts/observability \
+      -n {{obs_ns}}
 
     # Mint the service-account token the agents' Grafana MCP authenticates with. Last step on
     # purpose: everything above is already deployed if this fails, and it fails loudly rather
@@ -414,6 +369,18 @@ operator port="30998":
     cd operator
     exec opencode serve --port {{port}} --hostname 0.0.0.0
 
+# warm-pool reconciler — maintain a pool of idle vClusters and claim one per
+# ready-labelled Forgejo issue. Human-supervised by default; add --auto for
+# unattended mode.
+#   just pool             → human-supervised (interactive opencode)
+#   just pool --auto      → unattended (auto-approve permissions)
+pool auto="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    set -a; [ -f .env ] && source .env; set +a
+    echo "→ Starting pool manager..."
+    exec cargo run --release
+
 # ── Per-agent lifecycle ─────────────────────────────────────────────────────
 
 # Canonical names for the operator/board model: pool-provision = an idle pool member (card-agnostic);
@@ -462,89 +429,21 @@ provision name index: (_check-name name) _check-roots
     vcluster use driver helm
     kubectl config use-context {{context}}
 
-    tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-    cat >"$tmp/vcluster.yaml" <<EOF
-    sync:
-      toHost:
-        ingresses:
-          enabled: true
-    networking:
-      # Host-cluster services the agent's workloads must reach, replicated into the vCluster as
-      # real Services so the documented FQDN (otel-collector.{{obs_ns}}.svc.cluster.local) resolves
-      # natively. Without this every agent has to hand-patch the vCluster CoreDNS ConfigMap — and
-      # that patch dies with the vCluster. The chart auto-grants the ClusterRole rules this needs
-      # (templates/clusterrole.yaml is gated on networking.replicateServices.fromHost).
-      # NOTE: the target namespace must exist INSIDE the vCluster — created below, after connect.
-      replicateServices:
-        fromHost:
-          - from: {{obs_ns}}/otel-collector
-            to: {{obs_ns}}/otel-collector
-      advanced:
-        # Safety net for every other host service: names the vCluster can't resolve fall back to
-        # host DNS (addressed as <service>.<namespace>). networking.resolveDNS would be the precise
-        # tool but it requires embedded CoreDNS — a vCluster PRO feature, so not an option here.
-        fallbackHostCluster: true
-    controlPlane:
-      statefulSet:
-        resources:
-          requests: { cpu: 200m, memory: 256Mi }
-          limits: { cpu: "2", memory: 2Gi }
-      proxy:
-        extraSANs:
-          - host.docker.internal
-          - 127.0.0.1
-    EOF
-
+    # vCluster config is identical for every agent, so it's a static file rather than a heredoc:
+    #   values/vcluster.yaml   (ingress sync, otel-collector replication, control-plane sizing, SANs)
     vcluster create {{name}} --namespace "$ns" --create-namespace \
-      --values "$tmp/vcluster.yaml" --connect=false
+      --values values/vcluster.yaml --connect=false
 
-    # CPU is governed by REQUESTS, memory by both requests and limits. Deliberate:
-    # a quota on limits.cpu forces every container to carry a CPU limit, which forces the
-    # LimitRange to invent one — and that default, applied to every container INCLUDING
-    # initContainers and sidecars, is what actually exhausts the budget. Measured on the
-    # Astroshop run: requests.cpu 610m/4 while limits.cpu sat at 5050m/6. The workload was
-    # nowhere near its real budget; the default manufactured 8x phantom demand.
-    # Dropping limits.cpu means containers need no CPU limit at all — nothing to invent, and
-    # no CFS throttling starving JVM startup. CPU is compressible; the absolute ceiling stays
-    # with 'just harden' (CPUQuota across all of Docker) and fairness with requests.cpu.
-    # Memory is NOT compressible, so it keeps a hard cap.
-    kubectl --context {{context}} apply -f - <<EOF
-    apiVersion: v1
-    kind: ResourceQuota
-    metadata: { name: agent-quota, namespace: $ns }
-    spec:
-      hard:
-        requests.cpu: "4"
-        requests.memory: 8Gi
-        # 3x requests.memory, deliberately. Memory can't be dropped from the quota the way
-        # limits.cpu was (it isn't compressible), so the LimitRange must keep a memory default
-        # — which means the same "invented demand" arithmetic still applies: every container
-        # without an explicit limit contributes 512Mi. A 20-pod/3-container app therefore books
-        # ~20Gi of limits while genuinely reserving ~5Gi. Sizing this at the overcommit the
-        # defaults produce, not at the real footprint, is what keeps ordinary charts installable.
-        # The actual protections are requests.memory (what the scheduler reserves), node
-        # capacity, and the 'just harden' ceiling — not this number.
-        limits.memory: 24Gi
-        pods: "50"
-        persistentvolumeclaims: "10"
-    ---
-    apiVersion: v1
-    kind: LimitRange
-    metadata: { name: agent-defaults, namespace: $ns }
-    spec:
-      limits:
-        - type: Container
-          # No default cpu — see above. A memory default is required because limits.memory is quota'd.
-          default: { memory: 512Mi }
-          defaultRequest: { cpu: 50m, memory: 128Mi }
-          # Deliberately NO max.cpu: the LimitRanger back-fills `default` from `max` for any
-          # resource `default` omits, so a max.cpu of 2 silently reappears as a 2-CPU default
-          # limit on every container — reintroducing exactly the invented limit this change
-          # removes. Total CPU stays bounded by the quota's requests.cpu and by 'just harden'.
-          max: { memory: 4Gi }
-    EOF
+    # Per-agent guardrails: ResourceQuota + LimitRange (+ NetworkPolicy if enabled).
+    # Needs no --set — it takes its namespace from -n. The numbers and the reasoning behind
+    # them (why there is no limits.cpu, why limits.memory is 3x requests) live in
+    #   charts/agent/values.yaml
+    # Inspect what an agent gets without applying:  helm template agent charts/agent -n "$ns"
+    helm --kube-context {{context}} upgrade --install agent charts/agent --namespace "$ns"
 
-    # Pin the vCluster API service to the deterministic NodePort
+    # Pin the vCluster API service to the deterministic NodePort. Stays a kubectl patch on
+    # purpose: the Service belongs to the vCluster Helm release, so a second release cannot
+    # own it without a resource-ownership conflict.
     kubectl --context {{context}} -n "$ns" patch svc {{name}} --type merge \
       -p "{\"spec\":{\"type\":\"NodePort\",\"ports\":[{\"port\":443,\"targetPort\":8443,\"nodePort\":${port},\"protocol\":\"TCP\"}]}}"
 
@@ -700,43 +599,24 @@ ui name index="0":
     echo "OpenChamber → http://localhost:$ui_port"
     -@xdg-open "http://localhost:$ui_port" 2>/dev/null || true
 
-# Default-deny cross-agent network traffic (works with any CNI — recommended for default bootstrap)
-network-policy name:
+# Default-deny cross-agent network traffic (works with any CNI). Toggle:
+#   just network-policy my-agent          → on
+#   just network-policy my-agent false    → off
+# Read the warning in charts/agent/values.yaml first: this policy permits egress only to
+# kube-system, the agent's own namespace, and DNS — NOT the observability namespace or the
+# internet, so with it on, OTLP telemetry from agent workloads stops reaching the collector.
+# The setting is sticky: Helm 4 defaults to --reset-then-reuse-values, so it survives later
+# `just provision` runs until you explicitly pass false here.
+network-policy name enabled="true": (_check-name name)
     #!/usr/bin/env bash
     set -euo pipefail
-    kubectl --context {{context}} apply -f - <<EOF
-    apiVersion: networking.k8s.io/v1
-    kind: NetworkPolicy
-    metadata: { name: isolate-agent, namespace: vc-{{name}} }
-    spec:
-      podSelector: {}
-      policyTypes: [Ingress, Egress]
-      ingress:
-        - from:
-            - namespaceSelector:
-                matchLabels:
-                  kubernetes.io/metadata.name: kube-system
-            - podSelector: {}
-      egress:
-        - to:
-            - namespaceSelector:
-                matchLabels:
-                  kubernetes.io/metadata.name: kube-system
-            - podSelector: {}
-        - to:
-            - namespaceSelector:
-                matchLabels:
-                  kubernetes.io/metadata.name: kube-system
-              podSelector:
-                matchLabels:
-                  k8s-app: kube-dns
-          ports:
-            - protocol: UDP
-              port: 53
-            - protocol: TCP
-              port: 53
-    EOF
-    echo "✓ NetworkPolicy applied to vc-{{name}}."
+    helm --kube-context {{context}} upgrade --install agent charts/agent \
+      --namespace "vc-{{name}}" --set networkPolicy.enabled={{enabled}}
+    if [ "{{enabled}}" = "true" ]; then
+      echo "✓ NetworkPolicy applied to vc-{{name}}."
+    else
+      echo "✓ NetworkPolicy removed from vc-{{name}}."
+    fi
 
 # Default-deny cross-agent network traffic for an agent (requires the Cilium dataplane — use network-policy instead)
 netpol name:
@@ -800,6 +680,50 @@ deprovision name: (_check-name name) _check-roots
       "{{opencodes}}/$name.json"
     echo "✓ $name torn down."
 
+# ── Chaos gate ──────────────────────────────────────────────────────────────
+#
+# Every issue must pass the chaos suite before its work goes up for review. The AGENT triggers
+# it — by commenting `/chaos` on its issue — and the OPERATOR executes it, the same split as
+# teardown: the agent must not be able to run, weaken or forge its own verdict.
+#
+# Everything the suite injects inside a vCluster is zero-privilege (API writes, admission
+# rejections, a userspace TCP proxy, NetworkPolicy). Node-level faults are deliberately absent:
+# a privileged chaos-daemon in an agent's vCluster lands on a k3d node shared with every other
+# agent and ends the isolation boundary. See charts/chaos/values.yaml.
+
+# Install the fault kit INTO an agent's vCluster (idempotent; chaos-suite does this itself)
+chaos-install name: (_check-name name)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    kc="{{kubeconfigs}}/{{name}}.host.yaml"
+    [ -s "$kc" ] || { echo "ERROR: no host kubeconfig at $kc — run 'just kubeconfig {{name}}'." >&2; exit 1; }
+    helm --kubeconfig "$kc" upgrade --install chaos charts/chaos \
+      --namespace chaos-system --create-namespace --wait --timeout 3m
+    echo "✓ fault kit installed in {{name}}'s vCluster (namespace chaos-system)"
+
+# Run the chaos gate for an agent. No scenario → the `default` suite (what the gate enforces).
+# Exit 0 = pass, 1 = the agent's code failed, 2 = the harness could not run.
+chaos-suite name *scenarios: (_check-name name)
+    @python3 scripts/chaos-run.py {{name}} {{scenarios}}
+
+# Run one scenario, or the opt-in `extended` set: `just chaos pool-20 oom-squeeze`
+chaos name *scenarios: (_check-name name)
+    @python3 scripts/chaos-run.py {{name}} {{scenarios}} --suite all
+
+# List the scenario catalogue with what each one teaches
+chaos-list:
+    @python3 -c "import yaml,pathlib; [print(f\"{s['name']:<18} {s.get('suite','default'):<9} {s.get('teaches','')}\") for s in sorted((yaml.safe_load(p.read_text()) for p in pathlib.Path('chaos/scenarios').glob('*.yaml')), key=lambda s: (s.get('suite',''), s['name']))]"
+
+# ── Documentation ────────────────────────────────────────────────────────────
+
+# Build the mdBook documentation (outputs to docs/book/)
+docs:
+    cd docs && mdbook build
+
+# Serve the documentation with live reload (open http://localhost:3000)
+docs-serve:
+    cd docs && mdbook serve --open
+
 # ── Inspect / operate ───────────────────────────────────────────────────────
 
 # List live vClusters and their namespaces
@@ -830,6 +754,40 @@ endpoints:
     echo
     echo "── NodePorts — reach on 127.0.0.1:<nodePort> ──"
     kubectl --context {{context}} get svc -A 2>/dev/null | awk 'NR==1 || /NodePort/ {print "  " $0}' || true
+
+# Render every chart to stdout WITHOUT touching the cluster — the fastest way to see, diff,
+# or review the platform's full desired state. `just render agent vc-my-agent` for one chart.
+render chart="" namespace="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -n "{{chart}}" ]; then
+      args=(helm template "{{chart}}" "charts/{{chart}}")
+      [ -n "{{namespace}}" ] && args+=(--namespace "{{namespace}}")
+      [ "{{chart}}" = "platform" ] && args+=(--set forgejo.ip=0.0.0.0)
+      "${args[@]}"
+      exit 0
+    fi
+    for c in observability platform agent chaos; do
+      echo "# ═══════════════════ charts/$c ═══════════════════"
+      case "$c" in
+        observability) helm template "$c" "charts/$c" -n {{obs_ns}} ;;
+        platform)      helm template "$c" "charts/$c" -n platform --set forgejo.ip=0.0.0.0 ;;
+        agent)         helm template "$c" "charts/$c" -n vc-EXAMPLE ;;
+        # chaos is the one chart installed INSIDE a vCluster rather than in the host cluster.
+        chaos)         helm template "$c" "charts/$c" -n chaos-system ;;
+      esac
+      echo
+    done
+
+# Lint every chart (schema + template validity). Run before committing chart changes.
+lint:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    helm lint charts/observability
+    helm lint charts/platform --set forgejo.ip=0.0.0.0
+    helm lint charts/agent
+    helm lint charts/chaos
+    echo "✓ All charts lint clean."
 
 # Open Grafana in a browser
 grafana:

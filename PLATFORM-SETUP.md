@@ -53,7 +53,8 @@ host machine.
 | **Static per-agent kubeconfig** via NodePort | No live proxy process to babysit (see §7). |
 | **Agents get a vCluster kubeconfig + scoped MCP tokens only** | The agent's ceiling is its own cluster + a ResourceQuota + read-only observability of its own namespace. Never Docker, never the host. |
 | **One LGTM + OTel Collector in the host cluster** | Because vCluster workloads run as real pods in `vc-<cluster>` namespaces, one collector observes every agent, labelled per namespace (see §6). |
-| **Prometheus by default** (Mimir distributed opt-in) | Single-binary metrics for dev scale; `just observability mimir=distributed` for learning the full LGTM stack. |
+| **Mimir monolithic** as the only metrics store | One `-target=all` Deployment, filesystem storage, multitenancy off — no Prometheus and no 25-pod distributed topology. Fed solely by app OTLP through the collector. |
+| **Helm for all cluster state** | `charts/{observability,platform,agent}` for what this platform owns, `values/*.yaml` for the upstream Loki/Tempo/Grafana/vCluster releases. No `kubectl apply` heredocs — render it all with `just render`, check it with `just lint`. |
 | **Forgejo** as local Git server | Agents clone from a private, local Git server. Push changes for CI/review. No public repo auth needed. |
 | **Traefik ingress** (default) | Ships with k3d, zero-config. Cilium dataplane is available as an experimental option. |
 
@@ -224,27 +225,33 @@ per-agent boundary.
 just observability
 ```
 
-This deploys:
-- **Loki** (SingleBinary) — logs backend
-- **Tempo** — traces backend
-- **Prometheus** (default) — metrics backend (~1 pod, ~1 GB)
-- **Grafana** — dashboards, exposed at `http://grafana.platform.localhost`
-- **Grafana ingress** — auto-provisioned at `grafana.platform.localhost`
+This deploys, all through Helm:
 
-For the full Mimir distributed stack (production-grade, 25+ pods):
+| Component | Source | Config |
+|---|---|---|
+| **Loki** (SingleBinary) — logs | upstream `grafana/loki`, pinned | `values/loki.yaml` |
+| **Tempo** — traces | upstream `grafana/tempo`, pinned | `values/tempo.yaml` |
+| **Grafana** — dashboards at `http://grafana.platform.localhost` | upstream `grafana/grafana`, pinned | `values/grafana.yaml` |
+| **Mimir** (monolithic) — metrics | `charts/observability` | `charts/observability/values.yaml` |
+| **OTel Collector** — OTLP fan-out | `charts/observability` | ″ |
+| **Grafana datasources + ingress** | `charts/observability` | ″ |
+
+Chart versions are pinned in the `justfile` (`loki_version`, `tempo_version`,
+`grafana_version`) so a rebuild is reproducible.
+
+Inspect the entire desired state without touching the cluster:
 
 ```bash
-just observability mimir=distributed
+just render                  # every chart
+just render observability    # one chart
+just lint                    # validate all charts
 ```
 
-The recipe also supports `k8s-monitoring` (Alloy) if a
-`k8s-monitoring-values.yaml` file exists. Without it, deploy an OTel Collector
-manually (see below) or use the sample configuration in the `justfile`.
+#### OTel Collector
 
-#### OTel Collector (manual deployment)
-
-If `k8s-monitoring-values.yaml` doesn't exist, deploy a collector to ingest
-OTLP from agent workloads and forward to the LGTM backends:
+Deployed by `charts/observability` — see
+`charts/observability/templates/otel-collector.yaml`. It ingests OTLP from agent
+workloads and fans out to the LGTM backends:
 
 ```yaml
 # ConfigMap with pipelines for traces → Tempo, metrics → Prometheus, logs → Loki

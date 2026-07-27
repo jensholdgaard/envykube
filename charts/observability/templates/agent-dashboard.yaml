@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-agent-pool
+  namespace: {{ .Release.Namespace }}
+  labels:
+    grafana_dashboard: "1"
+data:
+  agent-pool.json: |
+    {{- .Files.Get "dashboards/agent-pool.json" | nindent 4 }}

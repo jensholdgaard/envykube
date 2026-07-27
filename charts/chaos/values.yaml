@@ -1,0 +1,82 @@
+# The fault kit an agent's vCluster gets so its code can be made to fail on purpose.
+#
+# READ THIS FIRST — the privilege story is the whole design:
+# every component here is deployable by an ordinary namespace user. Nothing is privileged,
+# nothing mounts a hostPath, nothing touches the container runtime. That is deliberate: an
+# agent's vCluster shares k3d node containers with every other agent, so a privileged
+# chaos-daemon (Chaos Mesh / Litmus netem+stress) inside a vCluster is a full escape from the
+# isolation boundary. Node-level faults (latency, loss, IO, time) are therefore NOT here —
+# they are injected from the host by the operator plane. See the plan's C3.
+#
+# Cost against the agent's budget (charts/agent/values.yaml): 2 pods, ~192Mi of the 8Gi
+# requests.memory and 2 of the 50 pods. Sized small on purpose — the kit must never be the
+# reason a chart doesn't fit.
+
+faultWebhook:
+  # A ValidatingAdmissionWebhook that rejects a DETERMINISTIC subset of writes. This is the
+  # oracle for non-idempotent code: an agent that re-reads on 409 and backs off on 500/429
+  # passes, one that clobbers or crashes does not.
+  #
+  # Determinism is why this is an ordinal counter and not a failure *rate*: the runner arms
+  # "fail the 3rd matching write with 409", so a failing run is reproducible and the fix is
+  # provably a fix. A percentage would give a weak model a different failure every attempt.
+  enabled: true
+  image: oven/bun:1
+  # The handler is mounted from a ConfigMap rather than baked into an image. Agents have no
+  # Docker socket and the platform has no in-cluster registry, so anything requiring a build
+  # could not be installed from inside a vCluster at all.
+  port: 8443
+  # MUST stay 1. The ordinal counter lives in process memory; a second replica would split the
+  # count and the Nth write would stop being the Nth write.
+  replicas: 1
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 128Mi }
+
+  # failurePolicy is Ignore, NOT Fail. A webhook that fails closed and then crashes would
+  # brick every write in the agent's cluster, including the ones that would fix it — an
+  # unrecoverable state in a sandbox whose entire purpose is recoverable states. The cost is
+  # that a dead webhook silently injects nothing, which is why the runner reads /state after
+  # every scenario and FAILS the scenario if the fault never actually fired.
+  failurePolicy: Ignore
+
+  # Which writes are eligible to be failed. Scoped to the objects an application deploy
+  # actually creates; kube-system, the chaos namespace itself and the vCluster's own control
+  # plane are excluded by namespaceSelector so arming a fault can never wedge the platform.
+  rules:
+    apiGroups: ["", "apps", "batch", "networking.k8s.io"]
+    resources:
+      - configmaps
+      - secrets
+      - services
+      - deployments
+      - statefulsets
+      - jobs
+      - ingresses
+    # No PATCH: the admission layer only knows CREATE / UPDATE / DELETE / CONNECT. A
+    # `kubectl patch` and a `kubectl apply` both arrive here as UPDATE.
+    operations: [CREATE, UPDATE]
+
+toxiproxy:
+  # Deterministic dependency faults (down / slow / reset / bandwidth) for the one dependency
+  # a card is about. The app must be pointed at the proxy — that is an explicit prerequisite
+  # declared in .chaos.yaml, not something injected behind the agent's back.
+  #
+  # This is also the only honest way to get LATENCY without privilege: tc/netem needs
+  # NET_ADMIN in the target's network namespace, a userspace TCP proxy does not.
+  enabled: true
+  image: ghcr.io/shopify/toxiproxy:2.12.0
+  apiPort: 8474
+  # Pre-opened listener ports the runner can bind proxies to. Fixed rather than dynamic so a
+  # scenario's Service definition is stable across runs.
+  proxyPorts: [21000, 21001, 21002]
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 128Mi }
+
+rbac:
+  # Lets the runner delete and patch pods for the API-only faults (pod-kill, pause-image
+  # stall, memory-limit squeeze). Cluster-scoped because a scenario targets whichever
+  # namespace the agent deployed into, which the chart cannot know at install time. This is
+  # still nothing an agent doesn't already have — it is cluster-admin of its own vCluster.
+  create: true

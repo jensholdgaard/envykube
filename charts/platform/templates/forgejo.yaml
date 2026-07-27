@@ -1,0 +1,47 @@
+{{- if not .Values.forgejo.ip }}
+{{- fail "forgejo.ip is required — run `just forgejo`, which discovers the container IP and passes it in." }}
+{{- end }}
+# A selector-less Service plus hand-written Endpoints is how a Service points at something
+# that isn't a pod. Forgejo is a Docker container on the k3d network, not a workload in this
+# cluster, so there are no labels to select — the Endpoints carries its IP directly.
+# Re-run `just forgejo` if the container is recreated and its IP changes.
+apiVersion: v1
+kind: Service
+metadata:
+  name: forgejo
+  namespace: {{ .Release.Namespace }}
+spec:
+  ports:
+    - name: http
+      port: {{ .Values.forgejo.port }}
+      targetPort: {{ .Values.forgejo.port }}
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: forgejo
+  namespace: {{ .Release.Namespace }}
+subsets:
+  - addresses:
+      - ip: {{ .Values.forgejo.ip }}
+    ports:
+      - name: http
+        port: {{ .Values.forgejo.port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: forgejo
+  namespace: {{ .Release.Namespace }}
+spec:
+  rules:
+    - host: {{ .Values.forgejo.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: forgejo
+                port:
+                  number: {{ .Values.forgejo.port }}

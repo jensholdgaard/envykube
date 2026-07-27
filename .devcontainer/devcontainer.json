@@ -20,7 +20,10 @@
   "containerEnv": {
     "KUBECONFIG": "/home/agent/.kube/config",
     "GRAFANA_TOKEN": "${localEnv:GRAFANA_TOKEN}",
-    "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${localEnv:GRAFANA_SERVICE_ACCOUNT_TOKEN}"
+    "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${localEnv:GRAFANA_SERVICE_ACCOUNT_TOKEN}",
+    "FORGEJO_URL": "http://forgejo:3000",
+    "FORGEJO_USER": "${localEnv:FORGEJO_USER}",
+    "FORGEJO_PASSWORD": "${localEnv:FORGEJO_PASSWORD}"
   },
   "remoteUser": "agent",
   "customizations": {

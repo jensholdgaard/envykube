@@ -1,0 +1,19 @@
+name: kill-mid-apply
+teaches: idempotency
+suite: default
+description: >-
+  The workload is interrupted while it is still converging, then the apply is re-run. This is
+  the half-applied state agents reason about worst: some objects exist, some don't, and the
+  fix has to be "run it again", not "clean up by hand first".
+steps:
+  - do: deploy
+  - do: kill
+    target: app
+    note: pods deleted mid-rollout, before the workload ever reached Ready
+  - do: deploy
+    note: re-running the apply over a partially-created namespace must still succeed
+  - do: assert-recovered
+    timeout: 180
+    note: >-
+      the workload could not converge after being interrupted and re-applied — recovery
+      depends on a human cleaning up the half-built state

@@ -1,0 +1,20 @@
+# Needs no --set: `helm upgrade --install observability charts/observability -n observability`.
+# Only pinned versions and hostnames are parameterised — the Mimir and OTel Collector
+# configs stay literal YAML in their templates, because reading them matters more than
+# being able to override them.
+
+mimir:
+  image: grafana/mimir:3.1.4
+  # Filesystem blocks storage. Sized for a laptop; this is a dev sandbox, not retention.
+  storage: 10Gi
+
+otelCollector:
+  image: otel/opentelemetry-collector-contrib:0.157.0
+  # Published on the host through the k3d NodePort range so DevContainers can reach the
+  # collector at host.docker.internal:<nodePort>.
+  grpcNodePort: 30417
+  httpNodePort: 30418
+
+grafana:
+  # Host-routed through Traefik on :80. Shared services use *.platform.localhost.
+  host: grafana.platform.localhost

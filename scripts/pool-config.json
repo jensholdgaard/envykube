@@ -1,0 +1,18 @@
+{
+  "minAvailable": 3,
+  "poolBase": 20,
+  "repo": "adminadmin/board-integration-test",
+  "repoUrl": "http://forgejo.localhost:3000/adminadmin/board-integration-test.git",
+  "forgejoApi": "http://forgejo.localhost:3000/api/v1",
+  "pollInterval": 10,
+  "stateDir": "~/.local/share/agent-pool",
+  "webhookPort": 30990,
+  "otlpEndpoint": "http://localhost:30418",
+  "labels": {
+    "ready": "ready",
+    "inProgress": "in-progress",
+    "review": "review",
+    "chaosPassed": "chaos-passed",
+    "chaosFailed": "chaos-failed"
+  }
+}

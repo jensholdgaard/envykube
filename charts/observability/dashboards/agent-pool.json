@@ -1,0 +1,189 @@
+{
+  "uid": "agent-pool",
+  "title": "Agent Pool Dashboard",
+  "tags": ["managed-by:agentic-platform", "agent:platform"],
+  "timezone": "browser",
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "id": 1,
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
+      "type": "stat",
+      "title": "vClusters",
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "targets": [
+        {
+          "expr": "count(kube_namespace_status_phase{namespace=~\"vc-.*\", phase=\"Active\"})",
+          "legendFormat": "Active",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "noValue": "0"
+        }
+      },
+      "options": {
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 2,
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 },
+      "type": "stat",
+      "title": "Agent Pods",
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "targets": [
+        {
+          "expr": "count(kube_pod_info{namespace=~\"vc-.*\"})",
+          "legendFormat": "Pods",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "noValue": "0"
+        }
+      },
+      "options": {
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 3,
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+      "type": "stat",
+      "title": "Pool Agents (vc-pool-*)",
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "targets": [
+        {
+          "expr": "count(kube_namespace_status_phase{namespace=~\"vc-pool-.*\", phase=\"Active\"})",
+          "legendFormat": "Pool",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] },
+          "noValue": "0"
+        }
+      },
+      "options": {
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 4,
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "type": "stat",
+      "title": "Total Nodes",
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "targets": [
+        {
+          "expr": "count(kube_node_info)",
+          "legendFormat": "Nodes",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "yellow", "value": null }] },
+          "noValue": "0"
+        }
+      },
+      "options": {
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 5,
+      "gridPos": { "h": 14, "w": 12, "x": 0, "y": 8 },
+      "type": "table",
+      "title": "Agent vClusters",
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "targets": [
+        {
+          "expr": "kube_namespace_status_phase{namespace=~\"vc-.*\", phase=\"Active\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "job": true, "instance": true },
+            "renameByName": { "namespace": "Agent", "phase": "Status" }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "gridPos": { "h": 14, "w": 12, "x": 12, "y": 8 },
+      "type": "table",
+      "title": "Agent Pods",
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "targets": [
+        {
+          "expr": "kube_pod_info{namespace=~\"vc-.*\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "job": true, "instance": true, "uid": true, "host_ip": true, "pod_ip": true },
+            "renameByName": { "namespace": "Agent", "pod": "Pod", "node": "Node" }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 22 },
+      "type": "timeseries",
+      "title": "Pod Count by Agent",
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "targets": [
+        {
+          "expr": "count(kube_pod_info{namespace=~\"vc-.*\"}) by (namespace)",
+          "legendFormat": "{{ namespace }}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 10
+          }
+        }
+      }
+    }
+  ]
+}

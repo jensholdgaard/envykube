@@ -1,0 +1,32 @@
+name: write-conflict
+teaches: idempotency
+suite: default
+description: >-
+  One write is rejected with 409 Conflict — the error a cluster returns when someone else
+  changed the object since you read it. The correct response is to re-read and re-apply; the
+  common wrong response is to force the write and clobber whatever changed, or to give up.
+steps:
+  - do: deploy
+  - do: ready
+  # `kubectl apply` computes its patch client-side and sends NOTHING when the object is
+  # already in the desired state, so an armed fault would have no write to reject and the
+  # scenario would pass having tested nothing. Moving the live state away from the manifest
+  # guarantees the next apply is a real UPDATE.
+  - do: scale
+    target: app
+    replicas: 0
+  - do: arm
+    mode: conflict
+    ordinals: [1]
+    operations: [UPDATE]
+    note: the next update is rejected with 409 Conflict
+  - do: deploy
+    note: >-
+      a 409 means "your copy is stale" — re-read and re-apply. Aborting here leaves the
+      deploy half-updated; forcing past it silently discards a concurrent change
+  - do: assert-fired
+    min: 1
+    note: the fault never fired, so this run proves nothing — check the fault-webhook pod
+  - do: disarm
+  - do: assert-recovered
+    timeout: 180

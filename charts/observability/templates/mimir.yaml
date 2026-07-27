@@ -1,12 +1,12 @@
 # Grafana Mimir — MONOLITHIC (-target=all), single replica, filesystem storage, multitenancy OFF.
-# One deployment, no metrics-storage pod sprawl. See BUILD-PLAN.md (P0).
+# One deployment, no metrics-storage pod sprawl.
 # multitenancy_enabled:false is REQUIRED — otherwise every push is rejected for a missing
 # X-Scope-OrgID header (all data lands under the implicit "anonymous" tenant instead).
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mimir-config
-  namespace: observability
+  namespace: {{ .Release.Namespace }}
 data:
   mimir.yaml: |
     multitenancy_enabled: false
@@ -18,13 +18,11 @@ data:
       storage:
         backend: filesystem
     limits:
-      promote_otel_resource_attributes:
-        - service.name
-        - service.namespace
-        - service.version
-        - k8s.namespace.name
-        - k8s.pod.name
-        - deployment.environment
+      # Lift these OTel resource attributes into Prometheus labels so metrics can be filtered
+      # by service/namespace/pod in Grafana. Must be a COMMA-SEPARATED STRING, not a YAML list:
+      # Mimir parses this as flagext.StringSliceCSV, and a sequence here fails at startup with
+      # `cannot unmarshal !!seq into string` (crash-loops the whole metrics store).
+      promote_otel_resource_attributes: "service.name,service.namespace,service.version,k8s.namespace.name,k8s.pod.name,deployment.environment"
     blocks_storage:
       filesystem:
         dir: /data/blocks
@@ -59,19 +57,19 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: mimir-data
-  namespace: observability
+  namespace: {{ .Release.Namespace }}
 spec:
   accessModes: ["ReadWriteOnce"]
   resources:
     requests:
-      storage: 10Gi
+      storage: {{ .Values.mimir.storage }}
   # k3d ships local-path as the default StorageClass; leave storageClassName unset to use it.
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mimir
-  namespace: observability
+  namespace: {{ .Release.Namespace }}
 spec:
   replicas: 1
   selector:
@@ -84,7 +82,7 @@ spec:
     spec:
       containers:
         - name: mimir
-          image: grafana/mimir:3.1.4
+          image: {{ .Values.mimir.image }}
           args: ["-config.file=/etc/mimir/mimir.yaml", "-target=all"]
           ports:
             - { name: http, containerPort: 8080 }
@@ -108,7 +106,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mimir
-  namespace: observability
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     app: mimir

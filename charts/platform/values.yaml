@@ -1,0 +1,8 @@
+forgejo:
+  # The ONLY value in this repo that must be passed at install time: Forgejo runs as a plain
+  # Docker container on the k3d network (so it survives `just nuke`), and its container IP is
+  # only knowable at runtime. `just forgejo` discovers it and passes --set forgejo.ip=<ip>.
+  ip: ""
+
+  host: forgejo.platform.localhost
+  port: 3000

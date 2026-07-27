@@ -1,0 +1,421 @@
+<!DOCTYPE HTML>
+<html lang="en" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Improvements - Agentic Kubernetes Platform</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-ad23b4d7.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-ba33dcd0.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Agentic Kubernetes Platform</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="improvements--known-issues"><a class="header" href="#improvements--known-issues">Improvements &amp; Known Issues</a></h1>
+<p>Documented during end-to-end testing of the justfile recipes and platform setup.</p>
+<hr>
+<h2 id="architecture-decisions"><a class="header" href="#architecture-decisions">Architecture Decisions</a></h2>
+<h3 id="cilium-dropped-as-default-dataplane--just-bootstrap-is-the-primary-path"><a class="header" href="#cilium-dropped-as-default-dataplane--just-bootstrap-is-the-primary-path">Cilium dropped as default dataplane — <code>just bootstrap</code> is the primary path</a></h3>
+<p>Cilium was evaluated as the single dataplane (CNI + kube-proxy + Gateway API +
+Hubble + NetworkPolicy per PLATFORM-SETUP.md §4.2–4.3). After extensive testing,
+it was downgraded to an optional/experimental recipe. Reasoning:</p>
+<p><strong>What Cilium provides vs. what the platform actually needs:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Cilium feature</th><th>Value for this project</th><th>Better alternative</th></tr>
+</thead>
+<tbody>
+<tr><td>eBPF kube-proxy replacement</td><td>No perf difference for 2–5 dev agents</td><td>Default kube-proxy (iptables)</td></tr>
+<tr><td>Gateway API (Cilium)</td><td>Redundant — k3d routes host ports through Traefik’s loadbalancer</td><td>Traefik (k3d default) handles ingress</td></tr>
+<tr><td>Hubble L3–L7 flows</td><td>Nice but OTel + LGTM already gives per-agent traces/metrics/logs</td><td>Grafana + Tempo + Loki + Mimir</td></tr>
+<tr><td>CiliumNetworkPolicy L7 rules</td><td><code>just netpol</code> only uses L3/L4 (namespace isolation)</td><td>Kubernetes NetworkPolicy</td></tr>
+<tr><td>Cilium CNI</td><td>Basic pod networking</td><td>Flannel (k3d default, zero config)</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>What Cilium costs:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Cost</th><th>Detail</th></tr>
+</thead>
+<tbody>
+<tr><td>TLSRoute CRD patch</td><td>Gateway API v1.5.1+ sets <code>served:false</code> on v1alpha2; Cilium 1.19 hardcodes v1alpha2. Requires <code>kubectl patch crd</code>. Breaks on version bumps.</td></tr>
+<tr><td>Manual Traefik install</td><td>k3d auto-deploy jobs conflict with pre-installed Gateway CRDs. Must delete jobs + helm install manually.</td></tr>
+<tr><td>Two bootstrap paths</td><td>Diverging recipes to maintain, different bugs, different troubleshooting</td></tr>
+<tr><td>Recipe complexity</td><td><code>bootstrap-cilium</code> is ~40 lines of bash; <code>bootstrap</code> is 1 line</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Verdict:</strong> Dropped Cilium. Kept <code>bootstrap-cilium</code> as an optional/experimental
+recipe for users who want it. <code>just bootstrap</code> (flannel + Traefik) is the
+recommended default.</p>
+<h3 id="kubernetes-networkpolicy-replaces-ciliumnetworkpolicy-for-agent-isolation"><a class="header" href="#kubernetes-networkpolicy-replaces-ciliumnetworkpolicy-for-agent-isolation">Kubernetes NetworkPolicy replaces CiliumNetworkPolicy for agent isolation</a></h3>
+<p>Since Cilium is no longer the default, agent isolation uses native
+<code>NetworkPolicy</code> (available with both flannel and any CNI). Added a
+<code>network-policy</code> recipe to the justfile. The existing <code>just netpol</code> recipe
+remains (Cilium-only).</p>
+<hr>
+<h2 id="remaining-recipe-issues"><a class="header" href="#remaining-recipe-issues">Remaining Recipe Issues</a></h2>
+<h3 id="just-observability--k8s-monitoring"><a class="header" href="#just-observability--k8s-monitoring"><code>just observability</code> — k8s-monitoring</a></h3>
+<p>The <code>grafana/k8s-monitoring</code> (Alloy) chart fails without <code>cluster.name</code> and at
+least one enabled collector + destination. The recipe expects a
+<code>k8s-monitoring-values.yaml</code> file that doesn’t exist. Added <code>--set cluster.name</code>
+so the chart installs, but full collection needs a proper values file.</p>
+<h3 id="just-provision--timeout-risk"><a class="header" href="#just-provision--timeout-risk"><code>just provision</code> — timeout risk</a></h3>
+<p><code>vcluster connect --print</code> occasionally hangs for &gt;2 minutes. Works reliably
+on the default flannel cluster; intermittent on Cilium.</p>
+<hr>
+<h2 id="chart-version-drift"><a class="header" href="#chart-version-drift">Chart Version Drift</a></h2>
+<h3 id="loki-chart-v700"><a class="header" href="#loki-chart-v700">Loki chart v7.0.0</a></h3>
+<p>The default <code>deploymentMode: SimpleScalable</code> requires object storage. Recipe must
+now explicitly set:</p>
+<ul>
+<li><code>singleBinary.replicas=1</code></li>
+<li><code>backend.replicas=0</code>, <code>read.replicas=0</code>, <code>write.replicas=0</code></li>
+<li><code>loki.useTestSchema=true</code> (no schema config provided)</li>
+</ul>
+<h3 id="tempo-chart--deprecated"><a class="header" href="#tempo-chart--deprecated">Tempo chart — deprecated</a></h3>
+<p>The <code>grafana/tempo</code> chart prints a deprecation warning on every install. Monitor
+for replacement chart.</p>
+<h3 id="grafana-chart--deprecated"><a class="header" href="#grafana-chart--deprecated">Grafana chart — deprecated</a></h3>
+<p>Same as Tempo. The <code>grafana/grafana</code> chart is also deprecated. Both still work
+but will stop receiving updates.</p>
+<hr>
+<h2 id="design--architecture"><a class="header" href="#design--architecture">Design / Architecture</a></h2>
+<h3 id="srv-paths-require-root"><a class="header" href="#srv-paths-require-root"><code>/srv/</code> paths require root</a></h3>
+<p><code>kubeconfigs</code> and <code>opencodes</code> were hardcoded to <code>/srv/agent-kubeconfigs</code> and
+<code>/srv/agent-opencode</code>. These require root to create. Changed to
+<code>$HOME/.local/share/</code> for user-writable paths, but this diverges from the
+PLATFORM-SETUP.md design (which assumes a harness service running as root).</p>
+<h3 id="hostdockerinternal-only-works-inside-containers"><a class="header" href="#hostdockerinternal-only-works-inside-containers"><code>host.docker.internal</code> only works inside containers</a></h3>
+<p>Static kubeconfigs use <code>host.docker.internal</code> as the server address — this only
+resolves inside Docker containers (or with <code>--add-host</code>). On the host machine,
+MCP servers and local tooling need <code>127.0.0.1</code> variants of the kubeconfig.</p>
+<h3 id="mimir-distributed-is-too-heavy-for-dev"><a class="header" href="#mimir-distributed-is-too-heavy-for-dev">Mimir-distributed is too heavy for dev</a></h3>
+<p>The full <code>grafana/mimir-distributed</code> chart deploys 25+ pods (ingester zones,
+store-gateway zones, Kafka, MinIO, etc.). For a dev platform, consider
+<code>mimir/single-binary</code> mode or plain Prometheus. The 48GB Docker cap (from
+<code>just harden</code>) is too tight with Mimir + Astroshop running simultaneously.</p>
+<h3 id="no-devcontainer-built"><a class="header" href="#no-devcontainer-built">No DevContainer built</a></h3>
+<p>Agents currently run on the bare-metal host. The DevContainer (PLATFORM-SETUP.md
+§8) with <code>workspaceMount</code> scoping and no Docker socket hasn’t been built or
+tested.</p>
+<h3 id="grafana-lbac-not-configured"><a class="header" href="#grafana-lbac-not-configured">Grafana LBAC not configured</a></h3>
+<p>The Grafana service account token is a basic <code>Viewer</code> role — no label-based
+access control (LBAC) scoping per agent namespace. Any agent with the token
+can query all telemetry.</p>
+<h3 id="k8sgpt-needs-separate-ai-backend"><a class="header" href="#k8sgpt-needs-separate-ai-backend">k8sgpt needs separate AI backend</a></h3>
+<p><code>k8sgpt serve --mcp</code> requires its own AI provider configuration (OpenAI key,
+Ollama, etc.) — it doesn’t piggyback on OpenCode’s model. The Kubernetes MCP
+server (<code>kubectl-mcp-server</code>) is a better fit since OpenCode provides the
+reasoning.</p>
+<h3 id="agent-isolation--networkpolicy-vs-ciliumnetworkpolicy"><a class="header" href="#agent-isolation--networkpolicy-vs-ciliumnetworkpolicy">Agent isolation — NetworkPolicy vs CiliumNetworkPolicy</a></h3>
+<p><code>CiliumNetworkPolicy</code> was tested end-to-end on the Cilium cluster (VALID=True).
+With the migration off Cilium, agent isolation uses native <code>NetworkPolicy</code>. The
+<code>just netpol</code> recipe is Cilium-only; a <code>network-policy</code> recipe needs to be added
+for the default bootstrap path.</p>
+<h3 id="just-harden-kills-the-cluster"><a class="header" href="#just-harden-kills-the-cluster"><code>just harden</code> kills the cluster</a></h3>
+<p><code>systemctl restart docker</code> destroys the running cluster. k3d containers
+auto-restart and workloads mostly recover (~2 minutes), but this isn’t a
+graceful operation. Consider a separate Docker daemon or VM-level cgroups
+for the cap.</p>
+<hr>
+<h2 id="quick-fixes-applied-already-in-justfile"><a class="header" href="#quick-fixes-applied-already-in-justfile">Quick Fixes Applied (already in justfile)</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Issue</th><th>Fix</th></tr>
+</thead>
+<tbody>
+<tr><td><code>/srv/</code> permission denied</td><td>Changed to <code>$HOME/.local/share/</code></td></tr>
+<tr><td>Loki chart v7.0.0 strict validation</td><td>Added singleBinary.replicas, zeroed scalable replicas, useTestSchema</td></tr>
+<tr><td>k8s-monitoring requires cluster.name</td><td>Added <code>--set cluster.name=agent-platform</code></td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="end-to-end-test-results-2026-07-11"><a class="header" href="#end-to-end-test-results-2026-07-11">End-to-End Test Results (2026-07-11)</a></h2>
+<p>Full system walkthrough: bootstrap → observability → provision 2 agents → deployment → ingress → deprovision.</p>
+<h3 id="what-works"><a class="header" href="#what-works">What works</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Capability</th><th>Status</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>just bootstrap</code></td><td>Pass</td><td>3/3 Ready in ~30s, Traefik auto-installs</td></tr>
+<tr><td><code>just observability</code></td><td>Pass*</td><td>LGTM deployed; k8s-monitoring fails (known); Grafana ingress must be applied manually if recipe fails mid-way</td></tr>
+<tr><td>OTel Collector deployment</td><td>Pass</td><td>All 3 pipelines (traces/metrics/logs) configured</td></tr>
+<tr><td>Grafana datasources (Tempo/Loki/Mimir)</td><td>Pass</td><td>Configured via API</td></tr>
+<tr><td><code>just provision</code> x2 agents</td><td>Pass</td><td>NodePorts 30001/30002 assigned</td></tr>
+<tr><td><code>just network-policy</code></td><td>Pass</td><td>NetworkPolicy applied to both agent namespaces</td></tr>
+<tr><td>Ingress sync through vCluster</td><td>Pass</td><td><code>Ingress</code> in vCluster → surfaced in host Traefik</td></tr>
+<tr><td>App accessible via hostname</td><td>Pass</td><td><code>test.agent-alpha.localhost</code> → HTTP 200</td></tr>
+<tr><td><code>just deprovision</code></td><td>Pass</td><td>vCluster + namespace + kubeconfig cleanly removed</td></tr>
+<tr><td><code>just prune</code></td><td>Pass</td><td>Cleanup works</td></tr>
+<tr><td><code>just list</code></td><td>Pass</td><td>Shows all active agents</td></tr>
+<tr><td>vCluster connect</td><td>Pass</td><td>Proxy-based access works reliably</td></tr>
+<tr><td>MCP servers</td><td>Pass</td><td>mcp-grafana v0.17.0, kubectl-mcp-server v1.24.0 ready</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="faults--inefficiencies-found"><a class="header" href="#faults--inefficiencies-found">Faults &amp; Inefficiencies Found</a></h3>
+<ol>
+<li>
+<p><strong><code>just observability</code> is brittle</strong> — k8s-monitoring failure (no collectors config) exits the bash script with <code>set -e</code>, so the Grafana ingress at the end of the recipe never gets created. The LGTM backends deploy fine but ingress is missing. Fix: move ingress apply before k8s-monitoring, or make k8s-monitoring conditional.</p>
+</li>
+<li>
+<p><strong>Static kubeconfig only works in containers</strong> — uses <code>host.docker.internal</code> as server address. On the host machine, <code>vcluster connect</code> is required. This is by design but means host-side MCP servers can’t use the static kubeconfig — they need a <code>127.0.0.1</code> variant or <code>vcluster connect</code>.</p>
+</li>
+<li>
+<p><strong>127.0.0.1 kubeconfig fails with EOF</strong> — even though port 30001 listens and <code>127.0.0.1</code> is in the vCluster cert SANs, the kubeconfig with <code>https://127.0.0.1:30001</code> gets EOF/timeout from kubectl. Root cause unclear — possibly k3s API server rejecting SNI or network policy interaction.</p>
+</li>
+<li>
+<p><strong>ResourceQuota too tight for demo workloads</strong> — default <code>limits.cpu: 6</code> blocks the Astroshop demo (22 pods × 500m = 11 cores). The quota is correctly protective but the default is restrictive. Agents would need to request a larger quota for real workloads.</p>
+</li>
+<li>
+<p><strong>No <code>k8s-monitoring-values.yaml</code></strong> — the observability recipe is incomplete without it. The OTel Collector is a manual workaround that works but isn’t in the recipe. Either add the collector deployment to <code>just observability</code> or create a proper Alloy values file.</p>
+</li>
+<li>
+<p><strong><code>just harden</code> untested in this run</strong> — the Docker resource cap was applied in a previous run but <code>systemctl restart docker</code> didn’t fully destroy the cluster (k3d containers auto-restarted). This is a risk: the cap may not survive a Docker daemon upgrade or host reboot if the drop-in isn’t persistent.</p>
+</li>
+<li>
+<p><strong>No observability for vCluster workloads</strong> — the OTel Collector is in the host cluster’s <code>observability</code> namespace. Agents deploying inside a vCluster need to configure their apps to send OTLP to <code>otel-collector.observability.svc.cluster.local</code> (host cluster DNS). This works but is fragile — it requires hardcoding the host cluster namespace. A better approach: the collector could be deployed inside each vCluster via the provision recipe, or a dedicated collector per vCluster namespace.</p>
+</li>
+<li>
+<p><strong>vcluster CLI version warning</strong> — v0.35.1 installed, v0.35.2 available. Minor but repeated warnings clutter output.</p>
+</li>
+<li>
+<p><strong>Grafana + Tempo charts deprecated</strong> — both print deprecation warnings on every install. Monitor for replacement charts.</p>
+</li>
+<li>
+<p><strong>k8s-monitoring chart blocks observability recipe</strong> — because <code>set -euo pipefail</code> exits the whole recipe when k8s-monitoring fails, the post-install Grafana ingress never runs. The recipe works for LGTM deployment but leaves the system in an incomplete state.</p>
+</li>
+<li>
+<p><strong><code>grafana-token</code> race condition: health check passes before API is ready</strong> — The <code>grafana-token</code> recipe (justfile:231) polls <code>GET /api/health</code> until it returns 200, but Grafana’s health endpoint can respond 200 before the internal service account API is fully initialized. The subsequent curl to <code>/api/serviceaccounts/search</code> returns an empty body (or the connection resets), and the Python JSON parser at line 241 fails with <code>JSONDecodeError: Expecting value</code>. This causes the entire <code>just observability</code> recipe to fail at the final step — all backends deploy successfully but the <code>.env</code> token is never written. <strong>Reproduction:</strong> fresh cluster, first <code>just observability</code> run. <strong>Workaround:</strong> wait 30–60 seconds and re-run <code>just grafana-token</code>. <strong>Fix:</strong> replace the health-check loop with a readiness check against <code>/api/serviceaccounts/search</code> itself (retry until it returns valid JSON with a <code>serviceAccounts</code> key), or add a longer post-healthcheck sleep.</p>
+</li>
+</ol>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../07-appendix/environment-idea.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../07-appendix/vision.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../07-appendix/environment-idea.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../07-appendix/vision.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-init-4b26e90f.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

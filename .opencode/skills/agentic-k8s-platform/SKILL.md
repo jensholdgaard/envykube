@@ -310,6 +310,92 @@ git remote add origin http://forgejo.platform.localhost/<user>/<repo>.git
 git push origin main
 ```
 
+## Making Your Code Fail On Purpose — the chaos gate
+
+**Every issue must pass the chaos suite before its work can go up for review.** A PR opened
+without a pass is blocked with a `REQUEST_CHANGES` review, and pushing new commits after a
+pass invalidates it — so run the suite when you think you are done, not early.
+
+### You trigger it — do not wait for a human
+
+After you implement and push your code, you immediately:
+
+1. Create `.chaos.yaml` at the repo root (see below)
+2. Comment `/chaos` on the issue (the curl command is in your initial prompt and in AGENTS.md)
+3. Wait for the report — the operator runs the suite and posts it back as a comment
+4. If FAIL: read what broke, fix it, push, comment `/chaos` again
+5. If PASS: proceed to open the PR
+
+This is automatic. You do not wait for someone else to type `/chaos`. You do not skip ahead to
+creating a PR while the suite is still red.
+
+### Why this exists
+
+A green happy-path verify proves your code works once, on an empty cluster, with everything
+up. It says nothing about the three things that actually break: unforeseen error paths,
+non-idempotent code, and half-applied states you cannot recover from. The suite manufactures
+those states deliberately and reproducibly, so you can *see* the failure instead of having to
+imagine it.
+
+Every fault is a fixed, named step — "the 3rd write is rejected with 409", "the dependency is
+scaled to zero" — never a random one. Two runs of the same scenario against the same code fail
+in exactly the same place, so a fix is provably a fix.
+
+### Declare how your work is driven: `.chaos.yaml`
+
+The suite cannot perturb what it cannot drive. Put this at the repo root and commit it:
+
+```yaml
+namespace: default
+deploy:  "kubectl apply -k ./deploy"          # MUST be safe to run twice
+ready:   "kubectl rollout status deploy/api --timeout=120s"
+verify:  "curl -fsS http://api.$VCLUSTER_NAME.localhost/healthz"
+selector: "app=api"                            # your app's pods
+dependency:                                    # only if you have one
+  name: postgres
+  selector: "app=postgres"
+  port: 5432
+```
+
+`$VCLUSTER_NAME` is set for you. A missing or incomplete `.chaos.yaml` fails the suite.
+
+### Trigger the suite
+
+Comment **`/chaos`** on your issue (you trigger, operator executes):
+
+```bash
+curl -s -X POST "http://forgejo:3000/api/v1/repos/<user>/<repo>/issues/<issue>/comments" \
+  -u "$FORGEJO_USER:$FORGEJO_PASSWORD" -H "Content-Type: application/json" \
+  -d '{"body":"/chaos"}'
+```
+
+Your credentials are at `/workspace/.forgejo` — source them first: `source /workspace/.forgejo`
+
+You cannot run the suite yourself — the operator runs it against your vCluster and posts the
+report back as a comment, so the verdict is not something you can weaken. `/chaos <scenario>`
+runs one named scenario if you want to iterate narrowly.
+
+### What it checks
+
+| Scenario | What it does | What it catches |
+|---|---|---|
+| `reapply-twice` | runs your deploy twice | schema created without `IF NOT EXISTS`, seeds inserted without `ON CONFLICT`, anything that appends instead of reconciling |
+| `restart-cold` | deletes every app pod | a startup path that only works against an empty dependency |
+| `kill-mid-apply` | kills pods mid-rollout, re-applies | recovery that needs a human to clean up first |
+| `write-conflict` | rejects one write with 409 | clobbering a concurrent change instead of re-reading |
+| `api-flaky` | rejects writes with 500, then 429 | a deploy that aborts on a transient API error |
+| `dependency-down` | scales your dependency to zero | a process that exits at startup, or a `/healthz` that reports 200 without touching the DB |
+
+Opt-in extras (`/chaos oom-squeeze` etc.): `oom-squeeze`, `stuck-not-ready`, `partition`,
+`dependency-slow`.
+
+### Reading a failure
+
+Each failure names the **behaviour** that was wrong, not just an exit code — e.g. *"health
+reported OK while the dependency was unreachable"*. Fix that cause, push to your branch, and
+comment `/chaos` again. After 5 failed runs the gate stops and asks for a human, so if two
+attempts change nothing, change the approach rather than the details.
+
 ## Debugging & Validating Your Work
 
 There is no `just validate` — **you** verify your own work with the real tools

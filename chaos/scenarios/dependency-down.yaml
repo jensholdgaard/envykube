@@ -1,0 +1,34 @@
+name: dependency-down
+teaches: foreseeing-errors
+suite: default
+requires: [dependency]
+description: >-
+  The declared dependency is scaled to zero: its endpoints disappear and connections are
+  refused. Two separate things are checked. The process must not exit — a crash-looping pod
+  cannot report anything useful — and the health endpoint must tell the truth, returning an
+  error while the dependency is gone rather than a cheerful 200 from a handler that never
+  touches it.
+#
+# Scale-to-zero rather than a proxy on purpose: it needs no change to how the application
+# addresses its dependency, so this scenario works against any repo that declares one. The
+# latency variant cannot avoid a proxy and lives in the opt-in `extended` suite.
+steps:
+  - do: deploy
+  - do: ready
+  - do: scale
+    target: dependency
+    replicas: 0
+    note: the dependency is gone — every connection to it is now refused
+  - do: verify
+    expect: fail
+    note: >-
+      health reported OK while the dependency was unreachable. A health check that does not
+      touch its dependencies cannot be used to decide anything
+  - do: scale
+    target: dependency
+    replicas: 1
+  - do: assert-recovered
+    timeout: 240
+    note: >-
+      the workload never recovered once the dependency came back — it almost certainly
+      connects once at startup and then exits or wedges, instead of retrying

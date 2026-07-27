@@ -1,0 +1,16 @@
+[book]
+authors = ["agentic-k8s-platform"]
+language = "en"
+src = "."
+title = "Agentic Kubernetes Platform"
+
+[output.html]
+mathjax-support = false
+default-theme = "navy"
+additional-js = ["mermaid-init.js"]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[build]
+build-dir = "book"

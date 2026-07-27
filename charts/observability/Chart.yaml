@@ -1,0 +1,9 @@
+apiVersion: v2
+name: observability
+description: >-
+  The observability pieces this platform owns: Mimir (monolithic metrics store), the OTel
+  Collector that fans OTLP out to Tempo/Mimir/Loki, Grafana datasource provisioning, and the
+  Grafana ingress. Loki, Tempo and Grafana themselves are upstream charts configured by
+  values/{loki,tempo,grafana}.yaml.
+type: application
+version: 0.1.0

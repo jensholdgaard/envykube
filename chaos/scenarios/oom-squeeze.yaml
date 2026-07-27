@@ -1,0 +1,32 @@
+name: oom-squeeze
+teaches: invariant-recovery
+suite: extended
+description: >-
+  The application's memory limit is dropped until the kernel OOM-kills it, producing a real
+  CrashLoopBackOff rather than a simulated one. Then the limit is restored and the workload
+  must recover unaided. Checks that state is not held only in memory and that a crash loop is
+  survivable rather than terminal.
+steps:
+  - do: deploy
+  - do: ready
+  - do: verify
+    capture: before
+  - do: squeeze
+    target: app
+    memory: 16Mi
+    note: memory limit dropped to 16Mi — the container will be OOMKilled by the kernel
+  - do: sleep
+    seconds: 30
+  - do: unsqueeze
+    target: app
+  - do: assert-recovered
+    timeout: 240
+    note: >-
+      the workload never came back after a crash loop. A restart must be a non-event; if it
+      is not, the process is holding something it should be persisting
+  - do: verify
+    capture: after
+  - do: assert-same
+    a: before
+    b: after
+    note: state was lost when the process was killed — it lived only in memory

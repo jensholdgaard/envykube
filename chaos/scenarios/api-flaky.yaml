@@ -1,0 +1,45 @@
+name: api-flaky
+teaches: foreseeing-errors
+suite: default
+description: >-
+  The Kubernetes API rejects one write in the middle of the deploy with a 500, then a later
+  one with a 429. Real clusters do this constantly. A deploy script that aborts on the first
+  transient error is a deploy script that will need a human every time the cluster hiccups.
+steps:
+  - do: deploy
+  - do: ready
+  # `kubectl apply` sends no request at all when the object already matches the manifest, so
+  # the live state has to be moved away from it or the armed fault has nothing to reject and
+  # the scenario passes having tested nothing.
+  - do: scale
+    target: app
+    replicas: 0
+  - do: arm
+    mode: error
+    ordinals: [1]
+    operations: [CREATE, UPDATE]
+    note: the next write is rejected with 500 InternalError
+  - do: deploy
+    note: >-
+      the apply must survive a transient 500 — retry the rejected write instead of abandoning
+      the rest of the manifest set. Wrap the deploy in a bounded retry
+  - do: assert-fired
+    min: 1
+    note: >-
+      the fault never actually reached the API server, so this run proves nothing. Check that
+      the fault-webhook pod is Ready — failurePolicy is Ignore, so a dead webhook injects
+      nothing silently
+  - do: disarm
+  - do: scale
+    target: app
+    replicas: 0
+  - do: arm
+    mode: throttle
+    ordinals: [1]
+    operations: [CREATE, UPDATE]
+    note: the next write is rejected with 429 TooManyRequests
+  - do: deploy
+    note: backpressure must be honoured and retried, not treated as a hard failure
+  - do: disarm
+  - do: assert-recovered
+    timeout: 180

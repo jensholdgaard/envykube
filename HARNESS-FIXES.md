@@ -278,20 +278,17 @@ there is no `service_namespace`; `service_name` exists only for `flagd`.
 
 **Fix:**
 
-1. `manifests/mimir-monolithic.yaml` — add to the config:
+1. ✅ **DONE** — `charts/observability/templates/mimir.yaml`:
    ```yaml
    limits:
-     promote_otel_resource_attributes:
-       - service.name
-       - service.namespace
-       - service.version
-       - k8s.namespace.name
-       - k8s.pod.name
-       - deployment.environment
+     # COMMA-SEPARATED STRING, not a YAML list — Mimir parses this as flagext.StringSliceCSV.
+     # A sequence here fails at startup with `cannot unmarshal !!seq into string`, which
+     # crash-loops the entire metrics store. (This bit us once; see below.)
+     promote_otel_resource_attributes: "service.name,service.namespace,service.version,k8s.namespace.name,k8s.pod.name,deployment.environment"
    ```
    (`-distributor.otel-promote-resource-attributes`, present in Mimir 3.1.4, experimental.)
    The agent's first instinct — `service_name` — then simply works, and `job` keeps working.
-2. `manifests/grafana-datasources.yaml` — pin **stable datasource UIDs** (`uid: mimir`,
+2. ✅ **DONE** — `charts/observability/templates/grafana-datasources.yaml` pins **stable datasource UIDs** (`uid: mimir`,
    `uid: tempo`, `uid: loki`). This is the whole of the agent's "problem round 3": it had to
    hardcode a random generated UID (`PAE45454D0EDB9216`) into every panel because the
    default reference didn't resolve. With fixed UIDs, dashboards are portable and
@@ -299,7 +296,8 @@ there is no `service_namespace`; `service_name` exists only for `flagd`.
 3. Document the label schema and a known-good PromQL example in `SKILL.md`, including the
    `$__rate_interval` caveat (it resolves against the panel's `interval`/scrape assumptions;
    an explicit `[5m]` is the reliable default for OTLP-pushed metrics).
-4. Ship one **known-good starter dashboard** JSON in `manifests/` as a copyable template.
+4. Ship one **known-good starter dashboard** JSON as a copyable template (a chart template in
+   `charts/observability/templates/`, or a plain file under `dashboards/`).
 
 ## F8 — Guardrails against self-inflicted damage ⬜
 

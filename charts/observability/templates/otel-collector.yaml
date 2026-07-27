@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: otel-collector-config
-  namespace: observability
+  namespace: {{ .Release.Namespace }}
 data:
   config.yaml: |
     receivers:
@@ -12,23 +12,28 @@ data:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
+      prometheus/ksm:
+        config:
+          scrape_configs:
+            - job_name: kube-state-metrics
+              scrape_interval: 30s
+              static_configs:
+                - targets: ["kube-state-metrics.kube-system.svc.cluster.local:8080"]
 
     processors:
       batch:
 
     exporters:
       otlp/tempo:
-        endpoint: tempo.observability.svc.cluster.local:4317
+        endpoint: tempo.{{ .Release.Namespace }}.svc.cluster.local:4317
         tls:
           insecure: true
       otlphttp/mimir:
-        # otlphttp appends /v1/metrics -> POSTs to Mimir's native OTLP endpoint /otlp/v1/metrics.
-        # No X-Scope-OrgID header needed: Mimir runs with multitenancy disabled.
-        endpoint: http://mimir.observability.svc.cluster.local:8080/otlp
+        endpoint: http://mimir.{{ .Release.Namespace }}.svc.cluster.local:8080/otlp
         tls:
           insecure: true
       otlphttp/loki:
-        endpoint: http://loki.observability.svc.cluster.local:3100/otlp
+        endpoint: http://loki.{{ .Release.Namespace }}.svc.cluster.local:3100/otlp
         tls:
           insecure: true
 
@@ -39,7 +44,7 @@ data:
           processors: [batch]
           exporters: [otlp/tempo]
         metrics:
-          receivers: [otlp]
+          receivers: [otlp, prometheus/ksm]
           processors: [batch]
           exporters: [otlphttp/mimir]
         logs:
@@ -51,7 +56,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: otel-collector
-  namespace: observability
+  namespace: {{ .Release.Namespace }}
 spec:
   replicas: 1
   selector:
@@ -64,7 +69,7 @@ spec:
     spec:
       containers:
         - name: otel-collector
-          image: otel/opentelemetry-collector-contrib:0.157.0
+          image: {{ .Values.otelCollector.image }}
           args:
             - --config=/etc/otel-collector/config.yaml
           ports:
@@ -94,7 +99,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: otel-collector
-  namespace: observability
+  namespace: {{ .Release.Namespace }}
 spec:
   type: NodePort
   selector:
@@ -103,10 +108,10 @@ spec:
     - name: grpc-otlp
       port: 4317
       targetPort: 4317
-      nodePort: 30417
+      nodePort: {{ .Values.otelCollector.grpcNodePort }}
       protocol: TCP
     - name: http-otlp
       port: 4318
       targetPort: 4318
-      nodePort: 30418
+      nodePort: {{ .Values.otelCollector.httpNodePort }}
       protocol: TCP

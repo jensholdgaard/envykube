@@ -1,0 +1,50 @@
+{{- if .Values.rbac.create }}
+# The API-only faults (pod-kill, pause-image stall, memory-limit squeeze) are plain writes
+# against the vCluster API. This grants nothing the agent doesn't already hold — it is
+# cluster-admin of its own vCluster — but naming the verbs keeps the fault kit's reach
+# legible and lets the runner run under a scoped identity rather than the agent's own.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: chaos-runner
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: chaos-runner
+# Cluster-scoped because a scenario targets whichever namespace the agent chose to deploy
+# into, which is unknowable at install time.
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch, delete, patch]
+  - apiGroups: [""]
+    resources: [pods/log, events, services, endpoints, configmaps]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets, replicasets, daemonsets]
+    verbs: [get, list, watch, patch, update]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    # The `partition` scenario is a NetworkPolicy — the only zero-privilege way to cut
+    # traffic. Requires sync.toHost.networkPolicies in values/vcluster.yaml, or the policy
+    # is an inert object and the fault silently does nothing.
+    verbs: [get, list, watch, create, delete]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: chaos-runner
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: chaos-runner
+subjects:
+  - kind: ServiceAccount
+    name: chaos-runner
+    namespace: {{ .Release.Namespace }}
+{{- end }}

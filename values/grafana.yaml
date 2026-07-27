@@ -1,0 +1,16 @@
+# grafana/grafana — applied by `just observability`.
+sidecar:
+  datasources:
+    enabled: true
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    labelValue: "1"
+    provider:
+      name: sidecar-provider
+      orgid: 1
+      folder: "Platform"
+      type: file
+      disableDeletion: false
+      allowUiUpdates: true
+      foldersFromFilesStructure: false
