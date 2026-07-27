@@ -1,0 +1,146 @@
+# Ourios — tenant-isolated log store for agent telemetry (showcase; runs ALONGSIDE Loki).
+# Single Rust binary, both roles (OTLP ingest + query), filesystem-backed like Mimir/Loki here.
+# Why it earns a slot next to Loki for THIS platform specifically:
+#   1. Per-agent tenancy for free: Ourios derives the tenant from each ResourceLogs'
+#      `service.name` on ingest, and every query is tenant-scoped. The workload plane
+#      isolates agents (NetworkPolicy, vClusters) but Loki+Mimir here are explicitly
+#      untenanted — telemetry from all agents lands in one shared pool. This closes that.
+#   2. An agent-native query surface: the querier speaks MCP (`/mcp`, streamable HTTP)
+#      with an introspectable query-schema resource — the same pattern as the per-agent
+#      `mcp-grafana`, but tenant-bound, so an agent can only ever query its own logs.
+#   3. FinOps columns: `opencode-plugin-otel`'s `api_request` log event carries flat
+#      `cost_usd` / `input_tokens` / `output_tokens` / `model` attributes (verified in
+#      its src/handlers/message.ts). Ourios promotes chosen attributes to real Parquet
+#      columns at ingest, so per-agent spend/usage aggregation is a one-line query.
+# The collector dual-writes logs (Loki + Ourios), so nothing existing changes behaviour.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ourios-config
+  namespace: {{ .Release.Namespace }}
+data:
+  config.yaml: |
+    storage:
+      backend: local
+      local:
+        bucket_root: /data/store
+      # Attributes promoted to Parquet columns at ingest (write-side projection:
+      # applies to telemetry captured after startup). Keys match what
+      # opencode-plugin-otel actually emits on its log events.
+      promoted_attributes:
+        log:
+          - model
+          - tool_name
+          - decision
+          - agent
+          # Typed numeric promotion (sum/avg over spend and tokens, e.g.
+          # `sum(attr.cost_usd) by agent`) ships in the next release after
+          # 0.5.0 — uncomment these when bumping the image:
+          # - { key: cost_usd, type: f64 }
+          # - { key: input_tokens, type: i64 }
+          # - { key: output_tokens, type: i64 }
+    receiver:
+      enabled: true
+      grpc_addr: "0.0.0.0:4317"
+      http_addr: "0.0.0.0:4318"
+      wal_root: /data/wal
+    querier:
+      enabled: true
+      http_addr: "0.0.0.0:4319"
+      mcp:
+        enabled: true
+    # Open mode to match the rest of this stack's posture (Mimir runs
+    # multitenancy_enabled:false, Loki is unauthenticated): tenants still
+    # isolate the DATA per agent, but any caller can name any tenant via the
+    # x-ourios-tenant header. To make the isolation adversarial — each agent
+    # gets a token that can only read its own tenant (missing token = 401,
+    # wrong tenant = 403) — add static tokens:
+    # auth:
+    #   tokens:
+    #     - name: agent-alpha
+    #       token: ${env:OURIOS_TOKEN_ALPHA}
+    #       tenants: [agent-alpha]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ourios-data
+  namespace: {{ .Release.Namespace }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: {{ .Values.ourios.storage }}
+  # k3d ships local-path as the default StorageClass; leave storageClassName unset to use it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ourios
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ourios
+  template:
+    metadata:
+      labels:
+        app: ourios
+    spec:
+      # The image runs as uid 65532 (nonroot); fsGroup makes the PVC writable for it.
+      securityContext:
+        fsGroup: 65532
+      containers:
+        - name: ourios
+          image: {{ .Values.ourios.image }}
+          args: ["--config=/etc/ourios/config.yaml"]
+          ports:
+            - { name: grpc-otlp, containerPort: 4317 }
+            - { name: http-otlp, containerPort: 4318 }
+            - { name: http-query, containerPort: 4319 }
+          volumeMounts:
+            - { name: config, mountPath: /etc/ourios, readOnly: true }
+            - { name: data, mountPath: /data }
+          readinessProbe:
+            tcpSocket: { port: 4319 }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 1Gi }
+      volumes:
+        - name: config
+          configMap: { name: ourios-config }
+        - name: data
+          persistentVolumeClaim: { claimName: ourios-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ourios
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: ourios
+  ports:
+    - { name: grpc-otlp, port: 4317, targetPort: 4317 }
+    - { name: http-otlp, port: 4318, targetPort: 4318 }
+    - { name: http-query, port: 4319, targetPort: 4319 }
+---
+# Separate NodePort service for the query/MCP endpoint only, following the
+# otel-collector precedent: DevContainers reach it at host.docker.internal:<nodePort>
+# (for opencode's MCP config), without exposing the OTLP ingest ports on the host.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ourios-query
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: NodePort
+  selector:
+    app: ourios
+  ports:
+    - name: http-query
+      port: 4319
+      targetPort: 4319
+      nodePort: {{ .Values.ourios.queryNodePort }}

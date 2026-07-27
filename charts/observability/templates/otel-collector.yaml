@@ -36,6 +36,12 @@ data:
         endpoint: http://loki.{{ .Release.Namespace }}.svc.cluster.local:3100/otlp
         tls:
           insecure: true
+      # Ourios showcase: dual-write logs. Ourios derives the tenant from each
+      # ResourceLogs' service.name, so per-agent isolation needs no header wiring here.
+      otlphttp/ourios:
+        endpoint: http://ourios.{{ .Release.Namespace }}.svc.cluster.local:4318
+        tls:
+          insecure: true
 
     service:
       pipelines:
@@ -50,7 +56,7 @@ data:
         logs:
           receivers: [otlp]
           processors: [batch]
-          exporters: [otlphttp/loki]
+          exporters: [otlphttp/loki, otlphttp/ourios]
 ---
 apiVersion: apps/v1
 kind: Deployment
