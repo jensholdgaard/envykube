@@ -21,9 +21,9 @@ grafana:
 
 ourios:
   # Log store with per-agent tenancy + an MCP query surface — see templates/ourios.yaml
-  # for why it runs alongside Loki. 0.5.0 is the latest release; the commented typed
-  # promotions in the config unlock with the next one.
-  image: ghcr.io/jensholdgaard/ourios:0.5.0
+  # for why it runs alongside Loki. 0.6.0 carries the typed numeric promotions
+  # (spend/token sums as real Float64/Int64 columns).
+  image: ghcr.io/jensholdgaard/ourios:0.6.0
   # Filesystem store. Same sizing philosophy as Mimir: laptop, not retention.
   storage: 10Gi
   # Query/MCP endpoint on the host for DevContainers (host.docker.internal:30419),

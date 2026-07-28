@@ -33,12 +33,11 @@ data:
           - tool_name
           - decision
           - agent
-          # Typed numeric promotion (sum/avg over spend and tokens, e.g.
-          # `sum(attr.cost_usd) by agent`) ships in the next release after
-          # 0.5.0 — uncomment these when bumping the image:
-          # - { key: cost_usd, type: f64 }
-          # - { key: input_tokens, type: i64 }
-          # - { key: output_tokens, type: i64 }
+          # Typed numeric promotion (0.6.0+, sum/avg over spend and
+          # tokens, e.g. `sum(attr.cost_usd) by agent`):
+          - { key: cost_usd, type: f64 }
+          - { key: input_tokens, type: i64 }
+          - { key: output_tokens, type: i64 }
     receiver:
       enabled: true
       grpc_addr: "0.0.0.0:4317"

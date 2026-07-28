@@ -51,26 +51,22 @@ The `k8s-debugger` agent can then diagnose its vCluster from its own logs
 `opencode-plugin-otel`'s `api_request` log event carries flat `cost_usd`,
 `input_tokens`, `output_tokens`, `model` attributes (see its
 `src/handlers/message.ts`). Ourios promotes chosen attributes to real
-Parquet columns at ingest, so with the 0.5.0 image today (a query without
-a `range(...)` stage covers a default recent window; add one to scope in
-time):
+Parquet columns at ingest — with the 0.6.0 image the spend/token columns
+are typed (`Float64`/`Int64`), so aggregation over money works directly.
+A query without a `range(...)` stage covers a default recent window; add
+one to scope in time. Grouping by an attribute implicitly filters to the
+records that carry it, so `by attr.model` is the api_request family:
 
 ```
-body == "api_request" | count by attr.model      # calls per model, this agent
-body == "tool_decision" | count by attr.decision # permission accept/deny mix
-body == "api_request" | range(2026-07-27T00:00:00Z, 2026-07-28T00:00:00Z) | count by bucket(1h)
-```
-
-and with the next release (typed numeric promotion — uncomment the typed
-entries in `templates/ourios.yaml`):
-
-```
-body == "api_request" | sum(attr.cost_usd) by attr.model, bucket(1h)  # spend over time
-body == "api_request" | sum(attr.output_tokens) by attr.agent         # usage per subagent
+template_id > 0 | count by attr.model                       # calls per model, this agent
+template_id > 0 | count by attr.decision                    # permission accept/deny mix
+template_id > 0 | sum(attr.cost_usd) by attr.model, bucket(1h)   # spend over time
+template_id > 0 | sum(attr.output_tokens) by attr.agent          # usage per subagent
 ```
 
 (Grouping by an attribute that is not promoted fails loudly with an
-error naming the fix — no silent empty results.)
+error naming the fix — no silent empty results. An all-NULL group sums
+to `null`, never zero.)
 
 That turns the pool into a meterable fleet: per-agent spend is one query,
 and an agent can introspect its own cost over MCP (this loop runs daily
@@ -85,7 +81,7 @@ kubectl -n observability get pods -l app=ourios
 # after some agent traffic, query a tenant (tenant = the agent's service.name):
 curl -s -X POST http://host.docker.internal:30419/v1/query \
   -H 'content-type: application/json' -H 'x-ourios-tenant: <service.name>' \
-  -d '{"query":"body == \"api_request\" | count by attr.model"}'
+  -d '{"query":"template_id > 0 | count by attr.model"}'
 ```
 
 ## Honest scope
