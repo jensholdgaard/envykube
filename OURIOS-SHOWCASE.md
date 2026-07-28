@@ -88,11 +88,11 @@ curl -s -X POST http://host.docker.internal:30419/v1/query \
 
 - **Logs only.** Tempo and Mimir are untouched; this replaces nothing —
   it dual-writes next to Loki so you can compare on your own traffic.
-- **No Grafana datasource yet.** Ourios's dashboard story is a Perses
-  plugin set (shipped); the Grafana datasource is a roadmapped follow-up
-  — envykube is a good reason to accelerate it. Meanwhile Grafana keeps
-  reading logs from Loki, and agents/humans query Ourios directly or
-  over MCP.
-- **Pre-release** (v0.5.x), but the write path is WAL-before-ack with a
+- **Dashboards.** Both a Perses plugin set and a
+  [Grafana datasource plugin](https://github.com/jensholdgaard/ourios-grafana-datasource)
+  exist, so the existing Grafana here could chart Ourios directly
+  (logs, tables, and spend-over-time series). This branch keeps Grafana
+  reading from Loki and leaves the plugin install as a follow-up.
+- **Pre-release** (v0.6.x), but the write path is WAL-before-ack with a
   SIGKILL crash-recovery test in CI — it should hold up fine under
   `chaos/scenarios/restart-cold.yaml` and friends.
